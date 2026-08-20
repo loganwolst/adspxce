@@ -749,6 +749,33 @@ function UserWithdraw({ user, db, run, pushToast }) {
     }
   };
 
+  const [checkingStatus, setCheckingStatus] = useState(false);
+  const checkPayoutStatus = async () => {
+    setCheckingStatus(true);
+    try {
+      const res = await fetch("/api/stripe/connect-refresh", { method: "POST", credentials: "include" });
+      const data = await res.json();
+      if (!res.ok || data.error) { pushToast(data.error || "Couldn't check payout status.", "error"); setCheckingStatus(false); return; }
+      if (data.onboarded) {
+        pushToast("Payout setup confirmed — reloading…", "success");
+        setTimeout(() => window.location.reload(), 800);
+      } else {
+        pushToast("Stripe shows setup isn't fully complete yet.", "error");
+        setCheckingStatus(false);
+      }
+    } catch (err) {
+      pushToast("Couldn't reach the payment server.", "error");
+      setCheckingStatus(false);
+    }
+  };
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("payout") === "return" && !user.stripeConnectOnboarded) {
+      checkPayoutStatus();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const submit = async (e) => {
     e.preventDefault();
     if (mode === "withdraw") {
@@ -780,9 +807,16 @@ function UserWithdraw({ user, db, run, pushToast }) {
             Right now, withdrawals here are demo-only. To actually receive money, verify your identity with our payment
             processor (Stripe) once — takes a couple of minutes, and after that every withdrawal pays out for real.
           </p>
-          <button className="btn btn-primary" onClick={startPayoutSetup} disabled={settingUpPayout}>
-            {settingUpPayout ? "Redirecting…" : "Set up real payouts"}
-          </button>
+          <div className="row-actions">
+            <button className="btn btn-primary" onClick={startPayoutSetup} disabled={settingUpPayout}>
+              {settingUpPayout ? "Redirecting…" : "Set up real payouts"}
+            </button>
+            {user.stripeConnectAccountId && (
+              <button className="btn btn-ghost" onClick={checkPayoutStatus} disabled={checkingStatus}>
+                {checkingStatus ? "Checking…" : "I've already completed setup — check status"}
+              </button>
+            )}
+          </div>
         </div>
       )}
       {user.stripeConnectOnboarded && (

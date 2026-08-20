@@ -268,6 +268,35 @@ app.post("/api/stripe/connect-onboard", async (req, res) => {
   }
 });
 
+// Checks Stripe directly for the real, current onboarding status, rather
+// than relying only on the account.updated webhook arriving — webhooks for
+// connected-account events specifically require extra configuration in
+// Stripe's dashboard that's easy to get wrong, so this is a more reliable
+// fallback: call this whenever a user returns from onboarding, or on demand.
+app.post("/api/stripe/connect-refresh", async (req, res) => {
+  const stripe = getStripe();
+  if (!stripe) return res.status(503).json({ error: "Payouts aren't configured on this server yet." });
+  if (!req.userId) return res.status(401).json({ error: "Please log in." });
+
+  const preDb = readDB();
+  const user = preDb.users[req.userId];
+  if (!user || !user.stripeConnectAccountId) {
+    return res.json({ db: sanitizeDB(preDb, req.userId), onboarded: false });
+  }
+
+  try {
+    const account = await stripe.accounts.retrieve(user.stripeConnectAccountId);
+    const onboarded = !!(account.details_submitted && account.charges_enabled && account.payouts_enabled);
+    const { db } = await withDB((draft) =>
+      logic.doSetStripeConnectStatus(draft, { stripeConnectAccountId: user.stripeConnectAccountId, onboarded })
+    );
+    res.json({ db: sanitizeDB(db, req.userId), onboarded });
+  } catch (e) {
+    console.error("Stripe Connect status refresh failed:", e.message);
+    res.status(500).json({ error: "Couldn't check payout status. Please try again." });
+  }
+});
+
 /* ------------------------------- backups ---------------------------------- */
 
 function requireAdmin(req, res, next) {
