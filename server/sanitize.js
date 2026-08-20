@@ -1,0 +1,55 @@
+const { computeTrustScore } = require("./logic");
+
+const PUBLIC_LEDGER_LIMIT = 20;
+
+// A genuinely anonymous activity feed for the logged-out/marketing screen.
+// No user id, advertiser id, campaign id, or campaign name — ever. Someone
+// inspecting network traffic gets exactly the same three fields a logged-out
+// visitor sees on screen: what kind of event it was, how much, and when.
+function buildPublicLedger(db) {
+  return db.transactions
+    .filter((t) => t.type === "AD_VIEW")
+    .slice(0, PUBLIC_LEDGER_LIMIT)
+    .map((t) => ({ type: t.type, amount: t.userShare, timestamp: t.timestamp }));
+}
+
+function sanitizeDB(db, viewerId) {
+  const viewer = viewerId ? db.users[viewerId] : null;
+  const isAdmin = viewer && viewer.role === "admin";
+
+  const users = {};
+  for (const [id, u] of Object.entries(db.users)) {
+    if (id === viewerId || isAdmin) {
+      // Full record for yourself (or an admin) — just strip the password hash.
+      const { passwordHash, ...full } = u;
+      if (u.role === "user") full.trustScore = computeTrustScore(u, db.transactions);
+      users[id] = full;
+    } else if (u.role === "advertiser") {
+      // Other people only ever need to know an advertiser's public storefront
+      // identity (to render campaign/product cards) — never their email,
+      // balance, contact info, or anything else.
+      users[id] = { id: u.id, role: u.role, company: u.company, advertiserStatus: u.advertiserStatus };
+    }
+    // Regular "user"-role accounts are never exposed to anyone but themselves or an admin.
+  }
+
+  // Orders contain real names and home addresses — only the buyer, the
+  // advertiser fulfilling it, or an admin should ever see one.
+  const orders = {};
+  for (const [id, o] of Object.entries(db.orders || {})) {
+    if (isAdmin || o.userId === viewerId || o.advertiserId === viewerId) {
+      orders[id] = o;
+    }
+  }
+
+  // Transactions are financial records — earnings, withdrawals, purchases.
+  // Only the person on either side of a transaction (or an admin) sees them
+  // with any identifying detail attached.
+  const transactions = isAdmin
+    ? db.transactions
+    : db.transactions.filter((t) => t.userId === viewerId || t.advertiserId === viewerId);
+
+  return { ...db, users, orders, transactions, publicLedger: buildPublicLedger(db) };
+}
+
+module.exports = { sanitizeDB };
