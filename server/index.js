@@ -297,6 +297,69 @@ app.post("/api/stripe/connect-refresh", async (req, res) => {
   }
 });
 
+app.post("/api/stripe/identity-start", async (req, res) => {
+  const stripe = getStripe();
+  if (!stripe) return res.status(503).json({ error: "Identity verification isn't configured on this server yet." });
+  if (!req.userId) return res.status(401).json({ error: "Please log in." });
+
+  try {
+    const baseUrl = `${req.protocol}://${req.get("host")}`;
+    const session = await stripe.identity.verificationSessions.create({
+      type: "document",
+      metadata: { userId: req.userId },
+      options: { document: { require_matching_selfie: true } },
+      return_url: `${baseUrl}/?identity=return`,
+    });
+    await withDB((draft) => logic.doSetIdentitySession(draft, { userId: req.userId, sessionId: session.id }));
+    res.json({ url: session.url });
+  } catch (e) {
+    console.error("Stripe Identity session creation failed:", e.message);
+    res.status(500).json({ error: "Couldn't start identity verification. Please try again." });
+  }
+});
+
+// Checks Stripe directly for the real verification result, the same
+// reliable pattern used for Connect payouts — don't depend solely on a
+// webhook arriving, since that proved fragile with Connect's account-scoped
+// events. Call this whenever a user returns from verification, or on demand.
+app.post("/api/stripe/identity-refresh", async (req, res) => {
+  const stripe = getStripe();
+  if (!stripe) return res.status(503).json({ error: "Identity verification isn't configured on this server yet." });
+  if (!req.userId) return res.status(401).json({ error: "Please log in." });
+
+  const preDb = readDB();
+  const user = preDb.users[req.userId];
+  if (!user || !user.identityVerificationSessionId) {
+    return res.json({ db: sanitizeDB(preDb, req.userId), status: "none" });
+  }
+
+  try {
+    const session = await stripe.identity.verificationSessions.retrieve(
+      user.identityVerificationSessionId,
+      { expand: ["verified_outputs"] }
+    );
+    let status = "processing";
+    let firstName, lastName, dob;
+    if (session.status === "verified") {
+      status = "verified";
+      firstName = session.verified_outputs?.first_name;
+      lastName = session.verified_outputs?.last_name;
+      dob = session.verified_outputs?.dob
+        ? `${session.verified_outputs.dob.year}-${String(session.verified_outputs.dob.month).padStart(2, "0")}-${String(session.verified_outputs.dob.day).padStart(2, "0")}`
+        : undefined;
+    } else if (session.status === "requires_input") {
+      status = "failed";
+    }
+    const { db } = await withDB((draft) =>
+      logic.doApplyIdentityResult(draft, { userId: req.userId, status, firstName, lastName, dob })
+    );
+    res.json({ db: sanitizeDB(db, req.userId), status });
+  } catch (e) {
+    console.error("Stripe Identity status refresh failed:", e.message);
+    res.status(500).json({ error: "Couldn't check verification status. Please try again." });
+  }
+});
+
 /* ------------------------------- backups ---------------------------------- */
 
 function requireAdmin(req, res, next) {

@@ -934,6 +934,50 @@ function UserProfile({ user, db, run, pushToast }) {
     pushToast(r.message || r.error, r.error ? "error" : "success");
   };
 
+  const [startingIdentity, setStartingIdentity] = useState(false);
+  const startIdentityVerification = async () => {
+    setStartingIdentity(true);
+    try {
+      const res = await fetch("/api/stripe/identity-start", { method: "POST", credentials: "include" });
+      const data = await res.json();
+      if (!res.ok || data.error) { pushToast(data.error || "Couldn't start verification.", "error"); setStartingIdentity(false); return; }
+      window.location.href = data.url;
+    } catch (err) {
+      pushToast("Couldn't reach the verification server.", "error");
+      setStartingIdentity(false);
+    }
+  };
+
+  const [checkingIdentity, setCheckingIdentity] = useState(false);
+  const checkIdentityStatus = async () => {
+    setCheckingIdentity(true);
+    try {
+      const res = await fetch("/api/stripe/identity-refresh", { method: "POST", credentials: "include" });
+      const data = await res.json();
+      if (!res.ok || data.error) { pushToast(data.error || "Couldn't check verification status.", "error"); setCheckingIdentity(false); return; }
+      if (data.status === "verified") {
+        pushToast("Identity verified — reloading…", "success");
+        setTimeout(() => window.location.reload(), 800);
+      } else if (data.status === "failed") {
+        pushToast("Verification wasn't successful. You can try again.", "error");
+        setTimeout(() => window.location.reload(), 800);
+      } else {
+        pushToast("Still processing — check back in a moment.", "error");
+        setCheckingIdentity(false);
+      }
+    } catch (err) {
+      pushToast("Couldn't reach the verification server.", "error");
+      setCheckingIdentity(false);
+    }
+  };
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("identity") === "return" && user.identityVerificationStatus !== "verified") {
+      checkIdentityStatus();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const saveMutePrefs = async (nextMutedInterests, nextMutedAdvertisers) => {
     const r = await run('SET_MUTE_PREFS', { mutedInterests: nextMutedInterests, mutedAdvertisers: nextMutedAdvertisers });
     pushToast(r.message || r.error, r.error ? "error" : "success");
@@ -965,6 +1009,32 @@ function UserProfile({ user, db, run, pushToast }) {
         </div>
         <button className="btn btn-primary" type="submit" style={{ marginTop: 22 }}><Check size={15} /> Save profile</button>
       </form>
+
+      <div className="card">
+        <div className="card-title">Identity verification</div>
+        {user.identityVerificationStatus === "verified" ? (
+          <div className="inline-warning" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>
+            <Check size={14} /> Verified{user.identityDuplicateFlag ? " — flagged for review (matches another account)" : ""}
+          </div>
+        ) : (
+          <>
+            <p className="muted" style={{ fontSize: 12.5, marginBottom: 12 }}>
+              Optional for now — confirms you're a real person with one account, using a quick photo ID check via Stripe.
+              We never see or store your ID document, only the verified result.
+            </p>
+            <div className="row-actions">
+              <button className="btn btn-primary" onClick={startIdentityVerification} disabled={startingIdentity}>
+                {startingIdentity ? "Redirecting…" : user.identityVerificationStatus === "failed" ? "Try again" : "Verify my identity"}
+              </button>
+              {user.identityVerificationSessionId && (
+                <button className="btn btn-ghost" onClick={checkIdentityStatus} disabled={checkingIdentity}>
+                  {checkingIdentity ? "Checking…" : "I've completed it — check status"}
+                </button>
+              )}
+            </div>
+          </>
+        )}
+      </div>
 
       <div className="card">
         <div className="card-title">Ad preferences</div>
@@ -1612,7 +1682,7 @@ function AdminUsers({ db, run, pushToast }) {
       <div className="page-head"><h2>Users</h2><p>Verification, suspension and earnings oversight.</p></div>
       <div className="card">
       <table className="table">
-        <thead><tr><th>Name</th><th>Email</th><th>Membership</th><th>Balance</th><th>Trust</th><th>Verified</th><th>Status</th><th></th></tr></thead>
+        <thead><tr><th>Name</th><th>Email</th><th>Membership</th><th>Balance</th><th>Trust</th><th>ID Verified</th><th>Verified</th><th>Status</th><th></th></tr></thead>
         <tbody>
           {users.map((u) => (
             <tr key={u.id}>
@@ -1621,6 +1691,15 @@ function AdminUsers({ db, run, pushToast }) {
               <td>{TIER_LABELS[u.membership]}</td>
               <td className="mono">{money(u.balance)}</td>
               <td className="mono">{u.trustScore ?? "—"}</td>
+              <td>
+                {u.identityVerificationStatus === "verified" ? (
+                  u.identityDuplicateFlag
+                    ? <span style={{ color: "#FF7A7A", fontWeight: 700, fontSize: 11.5 }}>⚠ Duplicate?</span>
+                    : <Check size={15} color="#52E3C2" />
+                ) : (
+                  <span className="muted" style={{ fontSize: 11.5 }}>{u.identityVerificationStatus === "processing" ? "Processing" : u.identityVerificationStatus === "failed" ? "Failed" : "—"}</span>
+                )}
+              </td>
               <td>{u.verified ? <Check size={15} color="#52E3C2" /> : <span className="muted">No</span>}</td>
               <td>{u.suspended ? <Badge status="suspended" /> : <Badge status="active" />}</td>
               <td className="row-actions">

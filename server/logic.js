@@ -33,8 +33,8 @@ function seedDB() {
     },
     users: {
       [adminId]: { id: adminId, role: "admin", name: "Admin", email: "admin@adspxce.test", passwordHash: hash("admin"), createdAt: nowISO() },
-      [u1]: { id: u1, role: "user", name: "Jordan Blake", email: "jordan@demo.test", passwordHash: hash("demo"), membership: "basic", balance: 4.80, pendingWithdrawal: 0, totalEarned: 4.80, dailyViewsUsed: 3, dailyViewsDate: todayStr(), verified: true, suspended: false, profile: { interests: ["Outdoors", "Fitness"], ageRange: "25-34", region: "North West England" }, mutedAdvertisers: [], mutedInterests: [], referralCode: "JORDAN1", referredBy: null, referralBonusPaid: true, stripeConnectAccountId: null, stripeConnectOnboarded: false, lastLoyaltyBonusWeek: null, createdAt: nowISO() },
-      [u2]: { id: u2, role: "user", name: "Priya Shah", email: "priya@demo.test", passwordHash: hash("demo"), membership: "plus", balance: 18.20, pendingWithdrawal: 0, totalEarned: 42.10, dailyViewsUsed: 0, dailyViewsDate: todayStr(), verified: true, suspended: false, profile: { interests: ["Technology", "Finance"], ageRange: "25-34", region: "London" }, mutedAdvertisers: [], mutedInterests: [], referralCode: "PRIYA1", referredBy: null, referralBonusPaid: true, stripeConnectAccountId: null, stripeConnectOnboarded: false, lastLoyaltyBonusWeek: null, createdAt: nowISO() },
+      [u1]: { id: u1, role: "user", name: "Jordan Blake", email: "jordan@demo.test", passwordHash: hash("demo"), membership: "basic", balance: 4.80, pendingWithdrawal: 0, totalEarned: 4.80, dailyViewsUsed: 3, dailyViewsDate: todayStr(), verified: true, suspended: false, profile: { interests: ["Outdoors", "Fitness"], ageRange: "25-34", region: "North West England" }, mutedAdvertisers: [], mutedInterests: [], referralCode: "JORDAN1", referredBy: null, referralBonusPaid: true, stripeConnectAccountId: null, stripeConnectOnboarded: false, lastLoyaltyBonusWeek: null, identityVerificationStatus: "none", identityVerificationSessionId: null, identityVerifiedAt: null, identityVerifiedName: null, identityFingerprint: null, identityDuplicateFlag: false, createdAt: nowISO() },
+      [u2]: { id: u2, role: "user", name: "Priya Shah", email: "priya@demo.test", passwordHash: hash("demo"), membership: "plus", balance: 18.20, pendingWithdrawal: 0, totalEarned: 42.10, dailyViewsUsed: 0, dailyViewsDate: todayStr(), verified: true, suspended: false, profile: { interests: ["Technology", "Finance"], ageRange: "25-34", region: "London" }, mutedAdvertisers: [], mutedInterests: [], referralCode: "PRIYA1", referredBy: null, referralBonusPaid: true, stripeConnectAccountId: null, stripeConnectOnboarded: false, lastLoyaltyBonusWeek: null, identityVerificationStatus: "none", identityVerificationSessionId: null, identityVerifiedAt: null, identityVerifiedName: null, identityFingerprint: null, identityDuplicateFlag: false, createdAt: nowISO() },
       [adv1]: { id: adv1, role: "advertiser", name: "Morgan Lee", email: "morgan@brand.test", passwordHash: hash("demo"), company: "Northwind Outfitters", contact: "morgan@brand.test", advertiserStatus: "approved", advertiserBalance: 640.00, subscriptionActive: true, createdAt: nowISO() },
     },
     campaigns: {
@@ -76,7 +76,9 @@ function doRegister(db, { role, name, email, passwordHash, company, contact, ref
     dailyViewsUsed: 0, dailyViewsDate: todayStr(), verified: false, suspended: false,
     profile: { interests: [], ageRange: null, region: "" }, mutedAdvertisers: [], mutedInterests: [],
     referralCode: generateReferralCode(db), referredBy, referralBonusPaid: false,
-    stripeConnectAccountId: null, stripeConnectOnboarded: false, lastLoyaltyBonusWeek: null, createdAt: nowISO(),
+    stripeConnectAccountId: null, stripeConnectOnboarded: false, lastLoyaltyBonusWeek: null,
+    identityVerificationStatus: "none", identityVerificationSessionId: null, identityVerifiedAt: null,
+    identityVerifiedName: null, identityFingerprint: null, identityDuplicateFlag: false, createdAt: nowISO(),
   };
   return { message: "Account created. Welcome to adspXce.", newId: id };
 }
@@ -220,6 +222,50 @@ function doSetStripeConnectStatus(db, { stripeConnectAccountId, onboarded }) {
   if (!user) return { error: "No matching account." };
   user.stripeConnectOnboarded = onboarded;
   return { message: "Payout status updated." };
+}
+
+/* ============================== IDENTITY VERIFICATION ======================= */
+// Deliberately stores the minimum possible PII: no document numbers, no
+// address, no date of birth in plain text — only a one-way hash (name + DOB)
+// used purely to detect when the SAME real person verifies against a SECOND
+// account. A match is flagged for admin review, never an automatic ban —
+// consistent with the rest of the app's fraud-handling philosophy.
+
+function identityFingerprint(firstName, lastName, dob) {
+  const crypto = require("crypto");
+  const normalized = `${(firstName || "").trim().toLowerCase()}|${(lastName || "").trim().toLowerCase()}|${dob || ""}`;
+  return crypto.createHash("sha256").update(normalized).digest("hex");
+}
+
+function doSetIdentitySession(db, { userId, sessionId }) {
+  const user = db.users[userId];
+  if (!user) return { error: "User not found." };
+  user.identityVerificationSessionId = sessionId;
+  user.identityVerificationStatus = "processing";
+  return { message: "Verification started." };
+}
+
+function doApplyIdentityResult(db, { userId, status, firstName, lastName, dob }) {
+  const user = db.users[userId];
+  if (!user) return { error: "User not found." };
+
+  if (status !== "verified") {
+    user.identityVerificationStatus = status; // 'failed' or 'processing'
+    return { message: `Identity verification: ${status}.` };
+  }
+
+  const fingerprint = firstName && lastName ? identityFingerprint(firstName, lastName, dob) : null;
+  const duplicate = fingerprint
+    ? Object.values(db.users).some((u) => u.id !== userId && u.identityFingerprint === fingerprint)
+    : false;
+
+  user.identityVerificationStatus = "verified";
+  user.identityVerifiedAt = nowISO();
+  user.identityVerifiedName = firstName && lastName ? `${firstName} ${lastName}` : null;
+  user.identityFingerprint = fingerprint;
+  user.identityDuplicateFlag = duplicate;
+
+  return { message: duplicate ? "Verified, but matches another account — flagged for review." : "Identity verified." };
 }
 
 function doUpgradeMembership(db, { userId, tier }) {
@@ -591,4 +637,5 @@ module.exports = {
   doUpdateProfile, doSetMutePrefs, doDonate, computeTrustScore, doRecordStripeDeposit,
   doMarkWithdrawalTransferred, doFailRealWithdrawal, doSetStripeConnectAccount, doSetStripeConnectStatus,
   getWeekAnchor, distinctActiveDaysThisWeek, maybePayLoyaltyBonus,
+  doSetIdentitySession, doApplyIdentityResult,
 };

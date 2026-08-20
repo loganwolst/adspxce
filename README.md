@@ -23,6 +23,28 @@ package.json      Root scripts (build client, start server)
 
 ## Since the last build
 
+- **Identity verification (Stripe Identity, test mode)**: users can optionally
+  verify with a real ID document + selfie check on their Profile page.
+  Deliberately minimal on data collected: **no document images, no address,
+  no raw date of birth are ever stored** — only a one-way hash of
+  name+DOB, used purely to detect the same real person registering a
+  second account. A match is **flagged for admin review, never an
+  automatic ban** (visible on Admin → Users as "⚠ Duplicate?"), consistent
+  with how the rest of the app handles suspected fraud. This is **not
+  currently required for anything** — signup, viewing ads, and
+  withdrawing all still work without it. Whether and when to make it
+  mandatory is exactly the kind of question the legal review should
+  answer, not something to decide in code.
+  - Learned from the Connect payout debugging session: this checks Stripe
+    **directly on demand** rather than depending on a webhook arriving —
+    same reliable pattern that actually got Connect working, applied from
+    the start this time instead of after a detour.
+  - One-time setup step, same shape as Connect's: Stripe requires you to
+    activate Identity once per account before the API will work — flagging
+    this upfront this time (Dashboard → Settings → Identity → accept
+    terms), since discovering it via an error message once already was
+    enough for one build.
+
 - **Figures audit**: found and fixed one real accuracy issue — the
   Membership page's "Earn up to £X a month" was computed using the
   *average* CPV across the platform's range, not the maximum. That meant
@@ -122,12 +144,24 @@ package.json      Root scripts (build client, start server)
 6. Real charges only start once you switch to **live mode** keys — a
    deliberate, separate step, not something that happens by accident.
 
+### Setting up Identity verification
+
+1. Stripe Dashboard (test mode) → **Settings → Identity** → accept the
+   terms and fill in the basic details Stripe asks for. This is a
+   one-time platform activation, required before the API will work at
+   all — same shape as the Connect activation step above.
+2. No new environment variables needed — it reuses `STRIPE_SECRET_KEY`.
+3. Test it: log in as any user → Profile → "Verify my identity" → Stripe's
+   test-mode flow lets you use placeholder document photos (it explains
+   this on screen) → once it redirects back, the app checks the result
+   directly rather than waiting on a webhook.
+
 ### What's still to build for payments
 
-- **Real payouts to users** (Stripe Connect) — the bigger half of this,
-  needs each user to onboard a connected account, and needs the legal
-  review to have landed first since this is the piece that actually sends
-  real money to real people.
+- ~~Real payouts to users~~ — **done.** Stripe Connect payouts are built,
+  tested, and have actually completed a real (test-mode) transfer
+  end-to-end. What's left here isn't code — it's the legal review, and
+  then switching from test to live keys when that's cleared.
 
 - **Rate limiting**: now that this is publicly reachable, login (10
   attempts/15 min), registration (10/hour), and the API generally (300/5 min)
