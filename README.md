@@ -23,6 +23,17 @@ package.json      Root scripts (build client, start server)
 
 ## Since the last build
 
+- **Duplicate-identity flags now actually do something**: a flagged account
+  can no longer submit new withdrawal requests (verified directly — the
+  request is rejected before any balance is touched), but ad-watching and
+  earning stay completely open, and donations aren't affected either
+  (money going to a charity doesn't personally benefit whoever's flagged,
+  so there's no real reason to block it). Admin gets a **"Clear flag"**
+  button once they've actually looked into it — without this, a false
+  positive (which is genuinely what happened in testing — Stripe's
+  test-mode data made two real, different demo accounts look identical)
+  would leave someone permanently locked out with no way back in.
+
 - **Identity verification (Stripe Identity, test mode)**: users can optionally
   verify with a real ID document + selfie check on their Profile page.
   Deliberately minimal on data collected: **no document images, no address,

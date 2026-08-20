@@ -129,6 +129,9 @@ function doCompleteView(db, { userId, campaignId, attentionPassed, interruptions
 function doRequestWithdrawal(db, { userId, amount }) {
   const user = db.users[userId];
   const cfg = db.config;
+  if (user.identityDuplicateFlag) {
+    return { error: "Your account is flagged for review — withdrawals are paused until an admin looks into it. You can still watch ads as normal." };
+  }
   if (!(amount > 0)) return { error: "Enter a valid amount." };
   if (amount < cfg.withdrawalMinimum) return { error: `Minimum withdrawal is £${cfg.withdrawalMinimum.toFixed(2)}.` };
   if (amount > user.balance) return { error: "Amount exceeds your available balance." };
@@ -266,6 +269,14 @@ function doApplyIdentityResult(db, { userId, status, firstName, lastName, dob })
   user.identityDuplicateFlag = duplicate;
 
   return { message: duplicate ? "Verified, but matches another account — flagged for review." : "Identity verified." };
+}
+
+function doClearIdentityFlag(db, { userId }) {
+  const user = db.users[userId];
+  if (!user) return { error: "User not found." };
+  if (!user.identityDuplicateFlag) return { error: "This account isn't flagged." };
+  user.identityDuplicateFlag = false;
+  return { message: "Flag cleared — withdrawals unblocked." };
 }
 
 function doUpgradeMembership(db, { userId, tier }) {
@@ -637,5 +648,5 @@ module.exports = {
   doUpdateProfile, doSetMutePrefs, doDonate, computeTrustScore, doRecordStripeDeposit,
   doMarkWithdrawalTransferred, doFailRealWithdrawal, doSetStripeConnectAccount, doSetStripeConnectStatus,
   getWeekAnchor, distinctActiveDaysThisWeek, maybePayLoyaltyBonus,
-  doSetIdentitySession, doApplyIdentityResult,
+  doSetIdentitySession, doApplyIdentityResult, doClearIdentityFlag,
 };

@@ -792,6 +792,11 @@ function UserWithdraw({ user, db, run, pushToast }) {
   return (
     <div>
       <div className="page-head"><h2>Withdraw</h2><p>Move eligible earnings to your verified payout method — or send them straight to a cause.</p></div>
+      {user.identityDuplicateFlag && (
+        <div className="inline-warning" style={{ marginBottom: 16 }}>
+          <AlertCircle size={14} /> Your account is flagged for review — withdrawals are paused until an admin looks into it. You can still watch ads as normal.
+        </div>
+      )}
       <div className="stat-grid">
         <StatCard label="Withdrawable balance" value={money(user.balance)} tone="#52E3C2" />
         <StatCard label="Pending withdrawal" value={money(user.pendingWithdrawal || 0)} />
@@ -834,7 +839,7 @@ function UserWithdraw({ user, db, run, pushToast }) {
             <div className="card-title">Request a withdrawal</div>
             <form className="inline-form" onSubmit={submit}>
               <input className="input" type="number" step="0.01" min="0" placeholder="Amount" value={amount} onChange={(e) => setAmount(e.target.value)} />
-              <button className="btn btn-primary" type="submit"><ArrowUpRight size={15} /> Request withdrawal</button>
+              <button className="btn btn-primary" type="submit" disabled={user.identityDuplicateFlag}><ArrowUpRight size={15} /> Request withdrawal</button>
             </form>
           </>
         ) : (
@@ -1704,6 +1709,7 @@ function AdminUsers({ db, run, pushToast }) {
               <td>{u.suspended ? <Badge status="suspended" /> : <Badge status="active" />}</td>
               <td className="row-actions">
                 {!u.verified && <button className="btn-mini" onClick={async () => { const r = await run('SET_USER_FLAG', { userId: u.id, field: "verified", value: true }); pushToast(r.message || r.error, r.error ? "error" : "success"); }}>Verify</button>}
+                {u.identityDuplicateFlag && <button className="btn-mini" onClick={async () => { const r = await run('CLEAR_IDENTITY_FLAG', { userId: u.id }); pushToast(r.message || r.error, r.error ? "error" : "success"); }}>Clear flag</button>}
                 <button className="btn-mini danger" onClick={async () => { const r = await run('SET_USER_FLAG', { userId: u.id, field: "suspended", value: !u.suspended }); pushToast(r.message || r.error, r.error ? "error" : "success"); }}>
                   {u.suspended ? "Unsuspend" : "Suspend"}
                 </button>

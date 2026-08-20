@@ -52,6 +52,7 @@ const ACTIONS = {
   SET_ADVERTISER_STATUS: { fn: logic.doSetAdvertiserStatus, level: "admin" },
   SET_USER_FLAG: { fn: logic.doSetUserFlag, level: "admin" },
   UPDATE_CONFIG: { fn: logic.doUpdateConfig, level: "admin" },
+  CLEAR_IDENTITY_FLAG: { fn: logic.doClearIdentityFlag, level: "admin" },
   CREATE_PRODUCT: { fn: logic.doCreateProduct, level: "self" },
   SET_PRODUCT_STATUS: { fn: logic.doSetProductStatus, level: "self" },
   RESTOCK_PRODUCT: { fn: logic.doRestockProduct, level: "self" },
