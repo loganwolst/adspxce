@@ -23,6 +23,19 @@ package.json      Root scripts (build client, start server)
 
 ## Since the last build
 
+- **Fixed the recurring "site looks empty after an update" issue**: the
+  server wasn't sending any cache instructions at all for the app's files,
+  which left it up to browser/network heuristics whether an old, stale
+  version got served after a deploy — exactly the "sometimes fine,
+  sometimes broken" pattern that kept resurfacing. Fixed properly rather
+  than papering over it: `index.html` now always re-fetches fresh (so a
+  browser can never run yesterday's app), while the actual JS/CSS bundle
+  files are safe to cache aggressively, since each build gives them a new
+  content-hashed filename — an old cached filename simply can't be
+  referenced by a fresh `index.html` anymore. Standard, correct pattern
+  for this kind of app; shouldn't need "try a different browser" as a
+  workaround going forward.
+
 - **Duplicate-identity flags now actually do something**: a flagged account
   can no longer submit new withdrawal requests (verified directly — the
   request is rejected before any balance is touched), but ad-watching and

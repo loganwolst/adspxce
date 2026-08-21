@@ -386,10 +386,28 @@ createBackup();
 setInterval(createBackup, 6 * 60 * 60 * 1000);
 
 /* ---------------------------- static frontend ----------------------------- */
+// Without explicit headers here, whether a browser serves a stale copy of
+// the app after a deploy is left to browser/network heuristics — which is
+// exactly the "sometimes works, sometimes shows an old version" pattern
+// this was causing. The fix: index.html must always be re-fetched fresh
+// (it's what points the browser at the current JS bundle), while the
+// bundle files themselves are safe to cache forever, since Vite gives each
+// build's files a new content-hashed filename — an old cached filename
+// simply won't be referenced by a fresh index.html anymore.
 
 const clientDist = path.join(__dirname, "..", "client", "dist");
-app.use(express.static(clientDist));
+app.use(express.static(clientDist, {
+  index: false,
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith(".html")) {
+      res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    } else {
+      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    }
+  },
+}));
 app.get("*", (req, res) => {
+  res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   res.sendFile(path.join(clientDist, "index.html"));
 });
 
