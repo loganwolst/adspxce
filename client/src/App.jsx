@@ -2211,6 +2211,8 @@ function GlobalStyle() {
         --pill: #F2F1FF; --pill-ink: #08091E;
       }
       * { box-sizing: border-box; }
+      html, body { margin: 0; padding: 0; height: 100%; background: var(--bg); }
+      #root { min-height: 100%; }
       .root, .loading-screen { position: relative; font-family: 'Inter', sans-serif; color: var(--ink); background: var(--bg); min-height: 100%; overflow-x: hidden; }
       .root::before, .loading-screen::before {
         content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;

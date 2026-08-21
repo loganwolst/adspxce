@@ -23,6 +23,13 @@ package.json      Root scripts (build client, start server)
 
 ## Since the last build
 
+- **Fixed a white background showing below the app on some pages**:
+  `html`/`body` had no background colour set at all — only the app's own
+  content did — so if a page's content was shorter than the browser
+  window, the browser's plain white default showed through underneath.
+  Set the dark background directly on `html`/`body` so it always fills
+  the full page regardless of content height or window size.
+
 - **Fixed the recurring "site looks empty after an update" issue**: the
   server wasn't sending any cache instructions at all for the app's files,
   which left it up to browser/network heuristics whether an old, stale
