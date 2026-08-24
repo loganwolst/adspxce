@@ -23,6 +23,48 @@ package.json      Root scripts (build client, start server)
 
 ## Since the last build
 
+- **Added the top-bar search you asked for**, placed exactly where you
+  circled — a "Search user" / "Search company" toggle with live results
+  as you type. Reuses the exact same minimal-preview safety principle
+  as everywhere else in the social feature (name, role, photo only,
+  nothing sensitive) — verified directly, including that unapproved
+  advertisers correctly stay excluded from company search results.
+  Worth being upfront about the one real tradeoff: this does mean
+  someone can now find your name and photo without you having shared
+  your code first (your wishlist stays fully protected either way,
+  behind the same follow-approval system) — this is standard behaviour
+  for this kind of feature, same as how Instagram itself works, not a
+  new or unusual exposure.
+
+- **Social profiles — profile picture, wishlist, followers/following**,
+  Instagram-style. All regular user accounts are strictly private (not
+  just private-by-default — the toggle to make one public has been
+  removed from the dispatcher entirely, so it's genuinely unreachable
+  even by calling the API directly, not just missing a button).
+  Advertisers stay the exception — always followable immediately, since
+  their identity is already public business info.
+  - **Privacy was tested directly, not assumed**, since this is the
+    most sensitive new surface area in the whole build: a stranger
+    genuinely can't see a private wishlist; a pending follow request
+    grants zero access until approved; a third unrelated party stays
+    locked out throughout; and the safe "preview" data shown for
+    followers/following contains only name, role, and photo — verified
+    directly that email, balance, and trust score never leak into it.
+  - Finding someone to follow works by their existing referral code
+    (no new user directory built — deliberately, since a searchable
+    list of everyone would be a bigger privacy surface than this
+    feature needs) — and shows their photo *before* you send the
+    request, specifically so you can confirm it's actually the right
+    person when names collide.
+  - Caught and fixed a real mistake of my own mid-build: an edit
+    accidentally deleted an existing function's signature (the
+    duplicate-identity-flag admin tool), which would have silently
+    broken it. Found and fixed immediately via the export check.
+  - Also caught a design flaw before it shipped: followers/following
+    lists can't be computed from data the browser already has, since
+    regular users never receive each other's full records — moved that
+    computation server-side, where full visibility actually exists.
+
 - **Refreshing now keeps you on whatever tab you're actually on**,
   instead of always dropping back to Dashboard — the current page is
   now reflected in the URL and read back on load. Verified the URL

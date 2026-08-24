@@ -53,6 +53,14 @@ const ACTIONS = {
   SET_USER_FLAG: { fn: logic.doSetUserFlag, level: "admin" },
   UPDATE_CONFIG: { fn: logic.doUpdateConfig, level: "admin" },
   CLEAR_IDENTITY_FLAG: { fn: logic.doClearIdentityFlag, level: "admin" },
+  SET_AVATAR: { fn: logic.doSetAvatar, level: "self" },
+  TOGGLE_WISHLIST: { fn: logic.doToggleWishlist, level: "self" },
+  FOLLOW_ACCOUNT: { fn: logic.doFollowAccount, level: "self" },
+  FOLLOW_BY_CODE: { fn: logic.doFollowByCode, level: "self" },
+  UNFOLLOW_ACCOUNT: { fn: logic.doUnfollowAccount, level: "self" },
+  APPROVE_FOLLOW_REQUEST: { fn: logic.doApproveFollowRequest, level: "self" },
+  DENY_FOLLOW_REQUEST: { fn: logic.doDenyFollowRequest, level: "self" },
+  REMOVE_FOLLOWER: { fn: logic.doRemoveFollower, level: "self" },
   ADMIT_FROM_WAITLIST: { fn: logic.doAdmitFromWaitlist, level: "admin" },
   ADMIT_WAITLIST_BATCH: { fn: logic.doAdmitWaitlistBatch, level: "admin" },
   CREATE_PRODUCT: { fn: logic.doCreateProduct, level: "self" },
@@ -70,6 +78,41 @@ const ACTIONS = {
 app.get("/api/state", (req, res) => {
   const db = readDB();
   res.json({ db: sanitizeDB(db, req.userId), currentUserId: req.userId || null });
+});
+
+app.get("/api/profile/:targetId", (req, res) => {
+  if (!req.userId) return res.status(401).json({ error: "Please log in." });
+  const db = readDB();
+  const profile = logic.getPublicProfile(db, req.params.targetId, req.userId);
+  if (!profile) return res.status(404).json({ error: "Account not found." });
+  res.json({ profile });
+});
+
+app.get("/api/lookup-code/:code", (req, res) => {
+  if (!req.userId) return res.status(401).json({ error: "Please log in." });
+  const db = readDB();
+  const target = Object.values(db.users).find((u) => u.role === "user" && u.referralCode === (req.params.code || "").trim().toUpperCase());
+  if (!target) return res.status(404).json({ error: "No account found with that code." });
+  // Deliberately minimal — just enough to visually confirm this is the right
+  // person before sending a follow request. Never email, balance, or anything else.
+  res.json({ preview: { id: target.id, name: target.name, avatarDataUrl: target.avatarDataUrl || null } });
+});
+
+app.get("/api/search", (req, res) => {
+  if (!req.userId) return res.status(401).json({ error: "Please log in." });
+  const q = (req.query.q || "").trim().toLowerCase();
+  const type = req.query.type === "advertiser" ? "advertiser" : "user";
+  if (q.length < 2) return res.json({ results: [] });
+  const db = readDB();
+  const results = Object.values(db.users)
+    .filter((u) => u.role === type)
+    .filter((u) => (type === "advertiser" ? u.company : u.name).toLowerCase().includes(q))
+    .filter((u) => type !== "advertiser" || u.advertiserStatus === "approved")
+    .slice(0, 20)
+    // Same minimal-preview principle as everywhere else — search results
+    // are exactly as safe to show as a code lookup, never more.
+    .map((u) => ({ id: u.id, name: type === "advertiser" ? u.company : u.name, avatarDataUrl: u.avatarDataUrl || null, role: u.role }));
+  res.json({ results });
 });
 
 app.post("/api/auth/register", registerLimiter, async (req, res) => {

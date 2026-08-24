@@ -3,7 +3,7 @@ import {
   Home, Eye, Wallet, ArrowUpRight, Megaphone, Settings, Users, ShieldCheck,
   LogOut, Plus, Check, X, Clock, TrendingUp, CreditCard, Building2,
   AlertCircle, PauseCircle, PlayCircle, Ban, ChevronRight, Sparkles, Lock,
-  ShoppingBag, Package, Gift,
+  ShoppingBag, Package, Gift, Heart, UserPlus, Camera, Search,
 } from "lucide-react";
 
 /* ============================== CONSTANTS ============================== */
@@ -1087,12 +1087,170 @@ function UserReferrals({ user, db }) {
 
 /* ============================== PROFILE (USER) =============================== */
 
+function ViewProfile({ targetId, db, run, pushToast, onClose }) {
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`/api/profile/${targetId}`, { credentials: "include" });
+        const data = await res.json();
+        if (!res.ok) { pushToast(data.error || "Couldn't load profile.", "error"); onClose(); return; }
+        setProfile(data.profile);
+      } catch (e) {
+        pushToast("Couldn't reach the server.", "error");
+        onClose();
+      } finally {
+        setLoading(false);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [targetId]);
+
+  const follow = async () => {
+    const r = await run('FOLLOW_ACCOUNT', { targetId });
+    pushToast(r.message || r.error, r.error ? "error" : "success");
+    if (!r.error) setProfile((p) => ({ ...p, isFollowedByViewer: true }));
+  };
+  const unfollow = async () => {
+    const r = await run('UNFOLLOW_ACCOUNT', { targetId });
+    pushToast(r.message || r.error, r.error ? "error" : "success");
+    if (!r.error) setProfile((p) => ({ ...p, isFollowedByViewer: false, wishlist: null }));
+  };
+
+  return (
+    <div className="modal-overlay" role="dialog" aria-modal="true" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 480 }}>
+        {loading || !profile ? (
+          <div className="loading-mark" style={{ fontSize: 14 }}>Loading…</div>
+        ) : (
+          <>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <Avatar dataUrl={profile.avatarDataUrl} name={profile.name} size={56} />
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 16 }}>{profile.name}</div>
+                  {profile.role === "advertiser" && <div className="muted" style={{ fontSize: 12 }}>Advertiser</div>}
+                </div>
+              </div>
+              <button className="btn-mini" onClick={onClose}><X size={14} /></button>
+            </div>
+            <div className="profile-stats-row">
+              <div className="profile-stat"><strong>{profile.wishlist ? profile.wishlist.length : "—"}</strong><span>Wishlist</span></div>
+              <div className="profile-stat"><strong>{profile.followerCount}</strong><span>Followers</span></div>
+              <div className="profile-stat"><strong>{profile.followingCount}</strong><span>Following</span></div>
+            </div>
+            {profile.id !== undefined && (
+              profile.isFollowedByViewer ? (
+                <button className="btn btn-ghost btn-block" onClick={unfollow}>Following — tap to unfollow</button>
+              ) : profile.hasPendingRequestFromViewer ? (
+                <button className="btn btn-ghost btn-block" disabled>Request pending</button>
+              ) : (
+                <button className="btn btn-primary btn-block" onClick={follow}><UserPlus size={14} /> {profile.role === "advertiser" ? "Follow" : "Request to follow"}</button>
+              )
+            )}
+            <div className="card-title" style={{ marginTop: 18 }}>Wishlist</div>
+            {profile.wishlist === null ? (
+              <p className="muted" style={{ fontSize: 12.5 }}>This account is private — follow to see their wishlist once approved.</p>
+            ) : profile.wishlist.length === 0 ? (
+              <p className="muted" style={{ fontSize: 12.5 }}>Nothing on their wishlist yet.</p>
+            ) : (
+              <WishlistGrid productIds={profile.wishlist} db={db} readOnly />
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Avatar({ dataUrl, name, size = 40 }) {
+  const initial = (name || "?").trim().charAt(0).toUpperCase();
+  return dataUrl ? (
+    <img src={dataUrl} alt="" style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
+  ) : (
+    <div style={{ width: size, height: size, borderRadius: "50%", background: "var(--surface-2)", border: "1px solid var(--line)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: size * 0.4, color: "var(--ink-soft)", flexShrink: 0 }}>
+      {initial}
+    </div>
+  );
+}
+
+function WishlistGrid({ productIds, db, onRemove, readOnly }) {
+  return (
+    <div className="wishlist-grid">
+      {productIds.map((pid) => {
+        const p = db.products?.[pid];
+        if (!p) return null;
+        return (
+          <div key={pid} className="wishlist-tile">
+            <div className="wishlist-tile-name">{p.name}</div>
+            <div className="wishlist-tile-price">{money(p.price)}</div>
+            {!readOnly && (
+              <button className="btn-mini danger" onClick={() => onRemove(pid)} style={{ marginTop: 6 }}>Remove</button>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function UserProfile({ user, db, run, pushToast }) {
   const existing = user.profile || {};
   const [interests, setInterests] = useState(existing.interests || []);
   const [ageRange, setAgeRange] = useState(existing.ageRange || "");
   const [region, setRegion] = useState(existing.region || "");
   const [mutedInterests, setMutedInterests] = useState(user.mutedInterests || []);
+
+  const [socialTab, setSocialTab] = useState("wishlist");
+  const [findCode, setFindCode] = useState("");
+  const [findResult, setFindResult] = useState(null);
+  const [findLoading, setFindLoading] = useState(false);
+  const [viewingId, setViewingId] = useState(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  const handleAvatarFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { pushToast("Please choose an image file.", "error"); return; }
+    setUploadingAvatar(true);
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const r = await run('SET_AVATAR', { avatarDataUrl: reader.result });
+      pushToast(r.message || r.error, r.error ? "error" : "success");
+      setUploadingAvatar(false);
+    };
+    reader.onerror = () => { pushToast("Couldn't read that image.", "error"); setUploadingAvatar(false); };
+    reader.readAsDataURL(file);
+  };
+
+  const findByCode = async () => {
+    if (!findCode.trim()) return;
+    setFindLoading(true);
+    setFindResult(null);
+    try {
+      const res = await fetch(`/api/lookup-code/${encodeURIComponent(findCode.trim())}`, { credentials: "include" });
+      const data = await res.json();
+      if (!res.ok) { pushToast(data.error || "No account found.", "error"); setFindLoading(false); return; }
+      setFindResult(data.preview);
+    } catch (e) {
+      pushToast("Couldn't reach the server.", "error");
+    } finally {
+      setFindLoading(false);
+    }
+  };
+
+  const sendFollowRequest = async () => {
+    if (!findResult) return;
+    const r = await run('FOLLOW_ACCOUNT', { targetId: findResult.id });
+    pushToast(r.message || r.error, r.error ? "error" : "success");
+    if (!r.error) { setFindResult(null); setFindCode(""); }
+  };
+
+  const followers = user.followersPreview || [];
+  const pendingRequests = user.pendingRequestsPreview || [];
+  const following = user.followingPreview || [];
 
   const toggleInterest = (tag) => {
     setInterests((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]));
@@ -1168,6 +1326,94 @@ function UserProfile({ user, db, run, pushToast }) {
   return (
     <div>
       <div className="page-head"><h2>Profile</h2><p>Tell us a bit about yourself so we can match you with more relevant — and often higher-paying — ads.</p></div>
+
+      <div className="card">
+        <div className="avatar-upload-row">
+          <label className="avatar-upload-btn">
+            <Avatar dataUrl={user.avatarDataUrl} name={user.name} size={64} />
+            <input type="file" accept="image/*" onChange={handleAvatarFile} disabled={uploadingAvatar} />
+          </label>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 16 }}>{user.name}</div>
+            <div className="muted" style={{ fontSize: 12 }}>{uploadingAvatar ? "Uploading…" : "Tap your photo to change it"}</div>
+          </div>
+        </div>
+        <div className="profile-stats-row">
+          <button type="button" className={socialTab === "wishlist" ? "profile-stat active" : "profile-stat"} onClick={() => setSocialTab("wishlist")}><strong>{(user.wishlist || []).length}</strong><span>Wishlist</span></button>
+          <button type="button" className={socialTab === "followers" ? "profile-stat active" : "profile-stat"} onClick={() => setSocialTab("followers")}><strong>{followers.length}</strong><span>Followers</span></button>
+          <button type="button" className={socialTab === "following" ? "profile-stat active" : "profile-stat"} onClick={() => setSocialTab("following")}><strong>{following.length}</strong><span>Following</span></button>
+        </div>
+
+        <div className="card-title">Find someone to follow</div>
+        <p className="muted" style={{ fontSize: 12, marginBottom: 8 }}>Enter their referral code — same code they'd share with you for referrals.</p>
+        <div className="inline-form">
+          <input className="input" placeholder="e.g. JORDAN1" value={findCode} onChange={(e) => setFindCode(e.target.value)} />
+          <button className="btn btn-ghost" type="button" onClick={findByCode} disabled={findLoading}>{findLoading ? "Looking…" : "Find"}</button>
+        </div>
+        {findResult && (
+          <div className="follower-row" style={{ marginTop: 10 }}>
+            <div className="follower-row-info">
+              <Avatar dataUrl={findResult.avatarDataUrl} name={findResult.name} size={36} />
+              <span>{findResult.name}</span>
+            </div>
+            <button className="btn-mini" onClick={sendFollowRequest}><UserPlus size={13} /> Request to follow</button>
+          </div>
+        )}
+
+        {socialTab === "wishlist" && (
+          (user.wishlist || []).length === 0 ? (
+            <p className="muted" style={{ fontSize: 12.5, marginTop: 14 }}>Nothing yet — add items from the Store and they'll show up here.</p>
+          ) : (
+            <div style={{ marginTop: 14 }}>
+              <WishlistGrid
+                productIds={user.wishlist}
+                db={db}
+                onRemove={async (pid) => { const r = await run('TOGGLE_WISHLIST', { productId: pid }); if (r.error) pushToast(r.error, "error"); }}
+              />
+            </div>
+          )
+        )}
+
+        {socialTab === "followers" && (
+          <div style={{ marginTop: 14 }}>
+            {pendingRequests.length > 0 && (
+              <>
+                <div className="card-title">Pending requests</div>
+                {pendingRequests.map((p) => (
+                  <div key={p.id} className="follower-row">
+                    <div className="follower-row-info"><Avatar dataUrl={p.avatarDataUrl} name={p.name} size={36} /><span>{p.name}</span></div>
+                    <div className="row-actions">
+                      <button className="btn-mini" onClick={async () => { const r = await run('APPROVE_FOLLOW_REQUEST', { requesterId: p.id }); pushToast(r.message || r.error, r.error ? "error" : "success"); }}>Approve</button>
+                      <button className="btn-mini danger" onClick={async () => { const r = await run('DENY_FOLLOW_REQUEST', { requesterId: p.id }); pushToast(r.message || r.error, r.error ? "error" : "success"); }}>Deny</button>
+                    </div>
+                  </div>
+                ))}
+              </>
+            )}
+            <div className="card-title" style={{ marginTop: pendingRequests.length > 0 ? 14 : 0 }}>Followers</div>
+            {followers.length === 0 ? <p className="muted" style={{ fontSize: 12.5 }}>No one yet.</p> : followers.map((f) => (
+              <div key={f.id} className="follower-row">
+                <div className="follower-row-info" style={{ cursor: "pointer" }} onClick={() => setViewingId(f.id)}><Avatar dataUrl={f.avatarDataUrl} name={f.name} size={36} /><span>{f.name}</span></div>
+                <button className="btn-mini danger" onClick={async () => { const r = await run('REMOVE_FOLLOWER', { followerId: f.id }); pushToast(r.message || r.error, r.error ? "error" : "success"); }}>Remove</button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {socialTab === "following" && (
+          <div style={{ marginTop: 14 }}>
+            {following.length === 0 ? <p className="muted" style={{ fontSize: 12.5 }}>Not following anyone yet.</p> : following.map((f) => (
+              <div key={f.id} className="follower-row">
+                <div className="follower-row-info" style={{ cursor: "pointer" }} onClick={() => setViewingId(f.id)}><Avatar dataUrl={f.avatarDataUrl} name={f.name} size={36} /><span>{f.name}</span></div>
+                <button className="btn-mini danger" onClick={async () => { const r = await run('UNFOLLOW_ACCOUNT', { targetId: f.id }); pushToast(r.message || r.error, r.error ? "error" : "success"); }}>Unfollow</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {viewingId && <ViewProfile targetId={viewingId} db={db} run={run} pushToast={pushToast} onClose={() => setViewingId(null)} />}
+
       <form className="card" onSubmit={save}>
         <div className="card-title">Age range</div>
         <div className="chip-row">
@@ -1318,15 +1564,26 @@ function UserStore({ user, db, run, pushToast }) {
         <div className="ad-grid">
           {products.map((p) => {
             const adv = db.users[p.advertiserId];
+            const wishlisted = (user.wishlist || []).includes(p.id);
             return (
               <div key={p.id} className="ad-card">
                 <div className="ad-card-top">
                   <span className="badge" style={{ color: "#E8C468", background: "#E8C46817", borderColor: "#E8C46840" }}>{adv.company}</span>
-                  <span className="ad-card-reward">{money(p.price)}</span>
+                  <button
+                    className="wishlist-toggle"
+                    aria-label={wishlisted ? "Remove from wishlist" : "Add to wishlist"}
+                    aria-pressed={wishlisted}
+                    onClick={async () => { const r = await run('TOGGLE_WISHLIST', { productId: p.id }); if (r.error) pushToast(r.error, "error"); }}
+                  >
+                    <Heart size={16} fill={wishlisted ? "#F0796B" : "none"} color={wishlisted ? "#F0796B" : "currentColor"} />
+                  </button>
                 </div>
                 <div className="ad-card-title">{p.name}</div>
                 <div className="ad-card-desc">{p.description}</div>
                 <div className="muted" style={{ fontSize: 11.5, marginBottom: 8 }}>{p.stock} in stock</div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                  <span className="ad-card-reward">{money(p.price)}</span>
+                </div>
                 <button className="btn btn-primary btn-block" onClick={() => setCheckoutProduct(p)}>Buy with wallet</button>
               </div>
             );
@@ -2337,6 +2594,59 @@ const NAV = {
   ],
 };
 
+function TopSearch({ db, run, pushToast }) {
+  const [open, setOpen] = useState(false);
+  const [type, setType] = useState("user");
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [viewingId, setViewingId] = useState(null);
+
+  useEffect(() => {
+    if (!query.trim() || query.trim().length < 2) { setResults([]); return; }
+    const timeout = setTimeout(async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(query.trim())}&type=${type}`, { credentials: "include" });
+        const data = await res.json();
+        setResults(data.results || []);
+      } catch (e) {
+        setResults([]);
+      } finally {
+        setLoading(false);
+      }
+    }, 300);
+    return () => clearTimeout(timeout);
+  }, [query, type]);
+
+  return (
+    <div className="topbar-search">
+      <button className="topbar-search-toggle" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+        <Search size={15} /> Search
+      </button>
+      {open && (
+        <div className="topbar-search-panel">
+          <div className="chip-row" style={{ marginBottom: 8 }}>
+            <button type="button" className={type === "user" ? "chip active" : "chip"} onClick={() => setType("user")}>Search user</button>
+            <button type="button" className={type === "advertiser" ? "chip active" : "chip"} onClick={() => setType("advertiser")}>Search company</button>
+          </div>
+          <input className="input" placeholder={type === "user" ? "Search by name…" : "Search by company…"} value={query} onChange={(e) => setQuery(e.target.value)} autoFocus />
+          <div className="topbar-search-results">
+            {loading && <div className="muted" style={{ fontSize: 12, padding: 8 }}>Searching…</div>}
+            {!loading && query.trim().length >= 2 && results.length === 0 && <div className="muted" style={{ fontSize: 12, padding: 8 }}>No matches.</div>}
+            {results.map((r) => (
+              <div key={r.id} className="follower-row" style={{ cursor: "pointer" }} onClick={() => { setViewingId(r.id); setOpen(false); }}>
+                <div className="follower-row-info"><Avatar dataUrl={r.avatarDataUrl} name={r.name} size={32} /><span>{r.name}</span></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {viewingId && <ViewProfile targetId={viewingId} db={db} run={run} pushToast={pushToast} onClose={() => setViewingId(null)} />}
+    </div>
+  );
+}
+
 function Shell({ user, db, run, pushToast, onLogout }) {
   const [page, setPage] = useState(() => {
     const fromUrl = new URLSearchParams(window.location.search).get("page");
@@ -2400,6 +2710,7 @@ function Shell({ user, db, run, pushToast, onLogout }) {
       <main className="main" id="main-content" tabIndex={-1}>
         <div className="topbar">
           <div className="topbar-role">{user.role === "advertiser" ? "Advertiser" : user.role === "admin" ? "Administrator" : "User"} account</div>
+          <TopSearch db={db} run={run} pushToast={pushToast} />
           <div className="topbar-name">{user.name}</div>
         </div>
         <div className="page">{content}</div>
@@ -2688,6 +2999,11 @@ function GlobalStyle() {
       }
       .topbar-role { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft); }
       .topbar-name { font-weight: 600; font-size: 13.5px; }
+      .topbar-search { position: relative; }
+      .topbar-search-toggle { display: flex; align-items: center; gap: 6px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 100px; padding: 7px 14px; font-size: 12.5px; color: var(--ink-soft); cursor: pointer; }
+      .topbar-search-toggle:hover { color: var(--ink); }
+      .topbar-search-panel { position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%); width: 320px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; box-shadow: 0 12px 32px rgba(0,0,0,0.4); z-index: 30; }
+      .topbar-search-results { max-height: 260px; overflow-y: auto; margin-top: 8px; }
       .page { padding: 28px 32px 60px; }
       .page-head { margin-bottom: 22px; }
       .page-head h2 { font-size: 21px; margin-bottom: 4px; }
@@ -2733,6 +3049,22 @@ function GlobalStyle() {
       .referral-code { font-family: 'IBM Plex Mono', monospace; font-size: 28px; font-weight: 600; letter-spacing: 0.08em; color: var(--accent); background: var(--surface-2); border: 1px dashed var(--line); border-radius: 10px; padding: 16px; text-align: center; }
 
       .modal-overlay { position: fixed; inset: 0; background: rgba(9,13,17,0.6); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 16px; }
+      .wishlist-toggle { background: transparent; border: none; padding: 4px; cursor: pointer; display: flex; align-items: center; color: var(--ink-soft); }
+      .profile-stats-row { display: flex; gap: 24px; padding: 14px 0; margin: 14px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+      .profile-stat { display: flex; flex-direction: column; align-items: center; background: transparent; border: none; cursor: pointer; padding: 4px 8px; border-radius: 8px; color: var(--ink); }
+      .profile-stat.active { background: var(--accent-soft); }
+      .profile-stat strong { font-size: 16px; }
+      .profile-stat span { font-size: 11px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.04em; }
+      .wishlist-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
+      .wishlist-tile { background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 10px; text-align: center; }
+      .wishlist-tile-name { font-size: 12px; font-weight: 600; margin-bottom: 4px; }
+      .wishlist-tile-price { font-size: 12px; color: var(--accent); font-family: 'IBM Plex Mono', monospace; }
+      .avatar-upload-row { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+      .avatar-upload-btn { position: relative; cursor: pointer; }
+      .avatar-upload-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+      .follower-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-top: 1px dashed var(--line); }
+      .follower-row:first-child { border-top: none; }
+      .follower-row-info { display: flex; align-items: center; gap: 10px; }
       .modal { background: var(--surface); border-radius: 14px; padding: 22px; width: 100%; max-width: 420px; max-height: 90vh; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
       .modal-head { display: flex; justify-content: space-between; align-items: center; }
       .modal-eyebrow { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft); font-weight: 700; }

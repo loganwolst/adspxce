@@ -34,9 +34,9 @@ function seedDB() {
     },
     users: {
       [adminId]: { id: adminId, role: "admin", name: "Admin", email: "admin@adspxce.test", passwordHash: hash("admin"), createdAt: nowISO() },
-      [u1]: { id: u1, role: "user", name: "Jordan Blake", email: "jordan@demo.test", passwordHash: hash("demo"), membership: "basic", balance: 4.80, pendingWithdrawal: 0, totalEarned: 4.80, dailyViewsUsed: 3, dailyViewsDate: todayStr(), verified: true, suspended: false, profile: { interests: ["Outdoors", "Fitness"], ageRange: "25-34", region: "North West England" }, mutedAdvertisers: [], mutedInterests: [], referralCode: "JORDAN1", referredBy: null, referralBonusPaid: true, stripeConnectAccountId: null, stripeConnectOnboarded: false, lastLoyaltyBonusWeek: null, identityVerificationStatus: "none", identityVerificationSessionId: null, identityVerifiedAt: null, identityVerifiedName: null, identityFingerprint: null, identityDuplicateFlag: false, waitlisted: false, createdAt: nowISO() },
-      [u2]: { id: u2, role: "user", name: "Priya Shah", email: "priya@demo.test", passwordHash: hash("demo"), membership: "plus", balance: 18.20, pendingWithdrawal: 0, totalEarned: 42.10, dailyViewsUsed: 0, dailyViewsDate: todayStr(), verified: true, suspended: false, profile: { interests: ["Technology", "Finance"], ageRange: "25-34", region: "London" }, mutedAdvertisers: [], mutedInterests: [], referralCode: "PRIYA1", referredBy: null, referralBonusPaid: true, stripeConnectAccountId: null, stripeConnectOnboarded: false, lastLoyaltyBonusWeek: null, identityVerificationStatus: "none", identityVerificationSessionId: null, identityVerifiedAt: null, identityVerifiedName: null, identityFingerprint: null, identityDuplicateFlag: false, waitlisted: false, createdAt: nowISO() },
-      [adv1]: { id: adv1, role: "advertiser", name: "Morgan Lee", email: "morgan@brand.test", passwordHash: hash("demo"), company: "Northwind Outfitters", contact: "morgan@brand.test", advertiserStatus: "approved", advertiserBalance: 640.00, subscriptionActive: true, createdAt: nowISO() },
+      [u1]: { id: u1, role: "user", name: "Jordan Blake", email: "jordan@demo.test", passwordHash: hash("demo"), membership: "basic", balance: 4.80, pendingWithdrawal: 0, totalEarned: 4.80, dailyViewsUsed: 3, dailyViewsDate: todayStr(), verified: true, suspended: false, profile: { interests: ["Outdoors", "Fitness"], ageRange: "25-34", region: "North West England" }, mutedAdvertisers: [], mutedInterests: [], referralCode: "JORDAN1", referredBy: null, referralBonusPaid: true, stripeConnectAccountId: null, stripeConnectOnboarded: false, lastLoyaltyBonusWeek: null, identityVerificationStatus: "none", identityVerificationSessionId: null, identityVerifiedAt: null, identityVerifiedName: null, identityFingerprint: null, identityDuplicateFlag: false, waitlisted: false, avatarDataUrl: null, profileVisibility: "private", wishlist: [], following: [], followRequestsReceived: [], createdAt: nowISO() },
+      [u2]: { id: u2, role: "user", name: "Priya Shah", email: "priya@demo.test", passwordHash: hash("demo"), membership: "plus", balance: 18.20, pendingWithdrawal: 0, totalEarned: 42.10, dailyViewsUsed: 0, dailyViewsDate: todayStr(), verified: true, suspended: false, profile: { interests: ["Technology", "Finance"], ageRange: "25-34", region: "London" }, mutedAdvertisers: [], mutedInterests: [], referralCode: "PRIYA1", referredBy: null, referralBonusPaid: true, stripeConnectAccountId: null, stripeConnectOnboarded: false, lastLoyaltyBonusWeek: null, identityVerificationStatus: "none", identityVerificationSessionId: null, identityVerifiedAt: null, identityVerifiedName: null, identityFingerprint: null, identityDuplicateFlag: false, waitlisted: false, avatarDataUrl: null, profileVisibility: "private", wishlist: [], following: [], followRequestsReceived: [], createdAt: nowISO() },
+      [adv1]: { id: adv1, role: "advertiser", name: "Morgan Lee", email: "morgan@brand.test", passwordHash: hash("demo"), company: "Northwind Outfitters", contact: "morgan@brand.test", advertiserStatus: "approved", advertiserBalance: 640.00, subscriptionActive: true, avatarDataUrl: null, createdAt: nowISO() },
     },
     campaigns: {
       [camp1]: { id: camp1, advertiserId: adv1, name: "Autumn Boot Launch", adTitle: "New Trailhead Boots — 20% Off", content: "Introducing our all-weather Trailhead boot line, built for the first frost.", destinationUrl: "https://example.com/boots", cpv: 0.20, totalBudget: 200, spent: 24, views: 120, dailyBudget: 50, targetAudience: "Outdoors, 25-45", geo: "United Kingdom", interestTags: ["Outdoors", "Fitness"], ageRange: "25-34", status: "active", createdAt: nowISO() },
@@ -64,7 +64,7 @@ function doRegister(db, { role, name, email, passwordHash, company, contact, ref
   const id = uid(role === "advertiser" ? "adv" : "user");
   if (role === "advertiser") {
     if (!company) return { error: "Company name is required for advertiser accounts." };
-    db.users[id] = { id, role: "advertiser", name, email, passwordHash, company, contact: contact || email, advertiserStatus: "pending", advertiserBalance: 0, subscriptionActive: false, createdAt: nowISO() };
+    db.users[id] = { id, role: "advertiser", name, email, passwordHash, company, contact: contact || email, advertiserStatus: "pending", advertiserBalance: 0, subscriptionActive: false, avatarDataUrl: null, createdAt: nowISO() };
     return { message: "Advertiser account created — pending admin approval.", newId: id };
   }
   let referredBy = null;
@@ -82,7 +82,8 @@ function doRegister(db, { role, name, email, passwordHash, company, contact, ref
     referralCode: generateReferralCode(db), referredBy, referralBonusPaid: false,
     stripeConnectAccountId: null, stripeConnectOnboarded: false, lastLoyaltyBonusWeek: null,
     identityVerificationStatus: "none", identityVerificationSessionId: null, identityVerifiedAt: null,
-    identityVerifiedName: null, identityFingerprint: null, identityDuplicateFlag: false, createdAt: nowISO(),
+    identityVerifiedName: null, identityFingerprint: null, identityDuplicateFlag: false,
+    avatarDataUrl: null, profileVisibility: "private", wishlist: [], following: [], followRequestsReceived: [], createdAt: nowISO(),
   };
   return {
     message: waitlisted
@@ -285,6 +286,154 @@ function doApplyIdentityResult(db, { userId, status, firstName, lastName, dob })
   if (!duplicate) maybePayReferralBonus(db, userId);
 
   return { message: duplicate ? "Verified, but matches another account — flagged for review." : "Identity verified." };
+}
+
+/* ============================== SOCIAL PROFILE =============================== */
+// The core rule for everything in this section: a regular user account is
+// never exposed to anyone but themselves or an admin, UNLESS the account
+// owner has explicitly made it public or explicitly approved a specific
+// follower — and even then, only the fields deliberately meant to be
+// shared (name, picture, wishlist) are ever exposed. Balance, email, trust
+// score, and everything else stays fully private regardless.
+
+const MAX_AVATAR_BASE64_BYTES = 180 * 1024;
+
+function doSetAvatar(db, { userId, avatarDataUrl }) {
+  const user = db.users[userId];
+  if (!user) return { error: "User not found." };
+  if (avatarDataUrl) {
+    if (typeof avatarDataUrl !== "string" || !avatarDataUrl.startsWith("data:image/")) {
+      return { error: "Please upload a valid image." };
+    }
+    const base64Part = avatarDataUrl.split(",")[1] || "";
+    const approxBytes = base64Part.length * 0.75;
+    if (approxBytes > MAX_AVATAR_BASE64_BYTES) {
+      return { error: "Image is too large — please use a smaller photo." };
+    }
+  }
+  user.avatarDataUrl = avatarDataUrl || null;
+  return { message: avatarDataUrl ? "Profile picture updated." : "Profile picture removed." };
+}
+
+function doSetProfileVisibility(db, { userId, visibility }) {
+  const user = db.users[userId];
+  if (!user) return { error: "User not found." };
+  if (visibility !== "public" && visibility !== "private") return { error: "Invalid visibility setting." };
+  user.profileVisibility = visibility;
+  return { message: `Profile set to ${visibility}.` };
+}
+
+function doToggleWishlist(db, { userId, productId }) {
+  const user = db.users[userId];
+  const product = db.products[productId];
+  if (!user) return { error: "User not found." };
+  if (!product) return { error: "Product not found." };
+  if (!user.wishlist) user.wishlist = [];
+  const idx = user.wishlist.indexOf(productId);
+  if (idx >= 0) {
+    user.wishlist.splice(idx, 1);
+    return { message: "Removed from wishlist." };
+  }
+  user.wishlist.push(productId);
+  return { message: "Added to wishlist." };
+}
+
+function doFollowAccount(db, { userId, targetId }) {
+  const user = db.users[userId];
+  const target = db.users[targetId];
+  if (!user || !target) return { error: "Account not found." };
+  if (userId === targetId) return { error: "You can't follow yourself." };
+  if (!user.following) user.following = [];
+  if (user.following.includes(targetId)) return { error: "Already following." };
+
+  if (target.role === "advertiser" || target.profileVisibility === "public") {
+    user.following.push(targetId);
+    return { message: `Now following ${target.role === "advertiser" ? target.company : target.name}.` };
+  }
+
+  if (!target.followRequestsReceived) target.followRequestsReceived = [];
+  if (target.followRequestsReceived.includes(userId)) return { error: "Follow request already sent." };
+  target.followRequestsReceived.push(userId);
+  return { message: "Follow request sent — they'll need to approve it." };
+}
+
+function doFollowByCode(db, { userId, code }) {
+  const target = Object.values(db.users).find((u) => u.role === "user" && u.referralCode === (code || "").trim().toUpperCase());
+  if (!target) return { error: "No account found with that code." };
+  return doFollowAccount(db, { userId, targetId: target.id });
+}
+
+function doUnfollowAccount(db, { userId, targetId }) {
+  const user = db.users[userId];
+  if (!user) return { error: "User not found." };
+  user.following = (user.following || []).filter((id) => id !== targetId);
+  return { message: "Unfollowed." };
+}
+
+function doApproveFollowRequest(db, { userId, requesterId }) {
+  const user = db.users[userId];
+  const requester = db.users[requesterId];
+  if (!user || !requester) return { error: "Account not found." };
+  if (!(user.followRequestsReceived || []).includes(requesterId)) return { error: "No pending request from this account." };
+  user.followRequestsReceived = user.followRequestsReceived.filter((id) => id !== requesterId);
+  if (!requester.following) requester.following = [];
+  if (!requester.following.includes(userId)) requester.following.push(userId);
+  return { message: `Approved — ${requester.name} is now following you.` };
+}
+
+function doDenyFollowRequest(db, { userId, requesterId }) {
+  const user = db.users[userId];
+  if (!user) return { error: "Account not found." };
+  user.followRequestsReceived = (user.followRequestsReceived || []).filter((id) => id !== requesterId);
+  return { message: "Request denied." };
+}
+
+function doRemoveFollower(db, { userId, followerId }) {
+  const follower = db.users[followerId];
+  if (!follower) return { error: "Account not found." };
+  follower.following = (follower.following || []).filter((id) => id !== userId);
+  return { message: "Removed." };
+}
+
+// The single source of truth for what a given viewer is allowed to see of
+// someone else's profile — deliberately separate from sanitizeDB, since
+// that function is for your OWN full state, not a narrow, safe view of
+// someone else's.
+function getPublicProfile(db, targetId, viewerId) {
+  const target = db.users[targetId];
+  if (!target) return null;
+  const viewer = viewerId ? db.users[viewerId] : null;
+  const isSelf = viewerId === targetId;
+  const isAdmin = !!(viewer && viewer.role === "admin");
+
+  const followerCount = Object.values(db.users).filter((u) => (u.following || []).includes(targetId)).length;
+  const followingCount = (target.following || []).length;
+
+  const base = {
+    id: target.id,
+    role: target.role,
+    name: target.role === "advertiser" ? target.company : target.name,
+    avatarDataUrl: target.avatarDataUrl || null,
+    followerCount,
+    followingCount,
+  };
+
+  if (target.role === "advertiser") {
+    return { ...base, advertiserStatus: target.advertiserStatus };
+  }
+  if (target.role !== "user") return null; // never expose admin accounts this way
+
+  const isPublic = target.profileVisibility === "public";
+  const viewerFollowsTarget = !!(viewer && (viewer.following || []).includes(targetId));
+  const canSeeWishlist = isSelf || isAdmin || isPublic || viewerFollowsTarget;
+
+  return {
+    ...base,
+    profileVisibility: target.profileVisibility,
+    wishlist: canSeeWishlist ? (target.wishlist || []) : null,
+    isFollowedByViewer: viewerFollowsTarget,
+    hasPendingRequestFromViewer: !isSelf && (target.followRequestsReceived || []).includes(viewerId),
+  };
 }
 
 function doClearIdentityFlag(db, { userId }) {
@@ -752,4 +901,6 @@ module.exports = {
   getWeekAnchor, distinctActiveDaysThisWeek, maybePayLoyaltyBonus,
   doSetIdentitySession, doApplyIdentityResult, doClearIdentityFlag,
   doAdmitFromWaitlist, doAdmitWaitlistBatch, waitlistCapacity, admittedUserCount, autoAdmitFromWaitlist,
+  doSetAvatar, doSetProfileVisibility, doToggleWishlist, doFollowAccount, doFollowByCode,
+  doUnfollowAccount, doApproveFollowRequest, doDenyFollowRequest, doRemoveFollower, getPublicProfile,
 };

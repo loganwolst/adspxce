@@ -18,6 +18,7 @@ function sanitizeDB(db, viewerId) {
   const isAdmin = viewer && viewer.role === "admin";
 
   const users = {};
+  const previewOf = (u) => ({ id: u.id, name: u.role === "advertiser" ? u.company : u.name, role: u.role, avatarDataUrl: u.avatarDataUrl || null });
   for (const [id, u] of Object.entries(db.users)) {
     if (id === viewerId || isAdmin) {
       // Full record for yourself (or an admin) — just strip the password hash.
@@ -31,6 +32,18 @@ function sanitizeDB(db, viewerId) {
           full.waitlistPosition = 1 + Object.values(db.users).filter(
             (o) => o.role === "user" && o.waitlisted && o.id !== id && o.createdAt < u.createdAt
           ).length;
+        }
+        if (id === viewerId) {
+          // Follower/following lists need cross-referencing every other
+          // account, which only the server can safely do — regular users
+          // never receive each other's full records, so this can't be
+          // computed client-side. Minimal safe fields only, same as any
+          // other public-profile preview.
+          full.followersPreview = Object.values(db.users)
+            .filter((o) => o.role === "user" && (o.following || []).includes(id))
+            .map(previewOf);
+          full.followingPreview = (u.following || []).map((fid) => db.users[fid]).filter(Boolean).map(previewOf);
+          full.pendingRequestsPreview = (u.followRequestsReceived || []).map((rid) => db.users[rid]).filter(Boolean).map(previewOf);
         }
       }
       users[id] = full;
