@@ -2363,7 +2363,7 @@ function GlobalStyle() {
           radial-gradient(900px 480px at 105% -10%, rgba(82,227,194,0.14), transparent 60%),
           radial-gradient(700px 420px at -10% 105%, rgba(232,196,104,0.08), transparent 60%),
           linear-gradient(180deg, #05060F, #090B1E 60%, #060811);
-        color: #EFF4F2; padding: 44px 40px; display: flex; flex-direction: column; justify-content: center; gap: 16px;
+        color: #EFF4F2; padding: 44px 40px; display: flex; flex-direction: column; gap: 16px;
       }
       .auth-hero > * { position: relative; z-index: 1; }
       @keyframes twinkle { 0%, 100% { opacity: 0.28; } 28% { opacity: 1; } 52% { opacity: 0.45; } 78% { opacity: 0.95; } }
@@ -2404,7 +2404,7 @@ function GlobalStyle() {
       .ticker-type { color: #C7D6D1; text-transform: capitalize; }
       .ticker-amt { color: #52E3C2; }
 
-      .auth-panel { padding: 44px 44px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+      .auth-panel { padding: 44px 44px; display: flex; flex-direction: column; align-items: center; }
       .auth-tabs { display: flex; gap: 4px; background: var(--line); border-radius: 10px; padding: 4px; margin-bottom: 26px; width: fit-content; }
       .tab { border: none; background: transparent; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--ink-soft); }
       .tab.active { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(16,21,27,0.08); }

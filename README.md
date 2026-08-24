@@ -23,6 +23,16 @@ package.json      Root scripts (build client, start server)
 
 ## Since the last build
 
+- **Found the real cause of the top/bottom gap — it wasn't the zoom fix
+  after all**: both the hero panel and the login panel had
+  `justify-content: center`, vertically centering their content within
+  the full-height container. That's exactly what produces equal gaps
+  above and below whenever content is shorter than the screen — one of
+  those rules was a leftover from an earlier fix that actually needed
+  horizontal centering, not vertical, and I'd added vertical "for good
+  measure" without it being asked for. Removed it — content now anchors
+  naturally at the top instead of floating in the middle.
+
 - **Fixed a gap top and bottom caused by the zoom fix itself**: applying
   `zoom` to `body` created a real mismatch — `body`'s own layout box
   stayed sized at the original (unzoomed) height as far as its parent
