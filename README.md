@@ -23,6 +23,56 @@ package.json      Root scripts (build client, start server)
 
 ## Since the last build
 
+- **Filled the space the demo box left with something genuinely useful**:
+  a "How it works" mini-explainer (watch → verify → get paid) plus a
+  real trust signal (real payments via Stripe) — everything stated is
+  something actually built, not marketing copy for features that don't
+  exist yet. Shows in both login and signup modes.
+
+- **Removed the public "Demo accounts" box from the login screen** — a
+  genuine security exposure now that the site is live and public
+  (showing the admin login openly to any visitor was the most serious
+  part of it). The accounts themselves still work exactly as before for
+  your own testing — this only removes them from being displayed to
+  the public.
+
+- **Referral links now actually work as links**: previously the "copy
+  invite message" just copied a bare code with no way for the recipient
+  to know where to use it. Now generates a real URL
+  (`adspxce.com/?ref=CODE`) — opening it lands straight on the signup
+  form with the code already filled in, nothing to type or figure out.
+  Verified the URL-parsing logic directly, including that it correctly
+  ignores other query parameters that might be present. The bare code
+  is still shown too, for anyone who'd rather type it in manually.
+
+- **Fixed two places using red "warning" styling for content that isn't
+  actually a warning** — the new Membership supply note and the
+  profile-completion nudge were both using the danger-red component
+  without overriding its colors, making informational and encouraging
+  messages look like something was wrong. Switched both to neutral
+  styling. Checked every other use of the same component for the same
+  mistake — only these two had it.
+
+- **Fixed a real bug you caught by testing precisely**: on your actual
+  live database — which existed before the waitlist feature was ever
+  built — `waitlistEnabled` was reading as `undefined`, since a brand-new
+  field only gets its default value on a genuinely fresh database, never
+  retroactively on one that already exists. `!!undefined` silently
+  evaluates to `false`, so the entire gate was quietly off for every
+  registration on your real site, no matter how far over capacity you
+  were. Reproduced the exact scenario you saw (12 admitted, capacity 2,
+  new signup sailed straight through) before fixing it, then confirmed
+  the fix resolves that exact case. Checked the rest of the code for the
+  same fragile pattern — only this one spot had it.
+
+- **Added a "Waitlist" column to Admin → Users** — genuinely missing
+  before this, and it caused real confusion: the existing "Status"
+  column shows Active/Suspended, a completely different field from
+  waitlist status, but easy to misread as answering "is this person
+  waitlisted?" when it doesn't. Now shows directly, no need to
+  cross-check the separate Waitlist page or log in as the account to
+  find out.
+
 - **Replaced the guessed "8 users per campaign" with a properly-derived
   formula**, grounded in each campaign's real economics rather than a
   flat number: every active campaign's actual daily budget ÷ its CPV

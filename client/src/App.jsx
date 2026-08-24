@@ -375,9 +375,10 @@ function WaitlistScreen({ user, db, onLogout }) {
 }
 
 function AuthScreen({ db, onLogin, onRegister }) {
-  const [mode, setMode] = useState("login");
+  const [initialRef] = useState(() => new URLSearchParams(window.location.search).get("ref") || "");
+  const [mode, setMode] = useState(initialRef ? "register" : "login");
   const [role, setRole] = useState("user");
-  const [form, setForm] = useState({ name: "", email: "", password: "", company: "", contact: "" });
+  const [form, setForm] = useState({ name: "", email: "", password: "", company: "", contact: "", referralCode: initialRef });
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
@@ -411,13 +412,6 @@ function AuthScreen({ db, onLogin, onRegister }) {
             <label>Email<input className="input" type="email" value={form.email} onChange={set("email")} required /></label>
             <label>Password<input className="input" type="password" value={form.password} onChange={set("password")} required /></label>
             <button className="btn btn-primary btn-block" type="submit">Log in</button>
-            <div className="demo-hint">
-              <div className="demo-hint-title">Demo accounts</div>
-              <div>admin@adspxce.test / admin — Admin</div>
-              <div>jordan@demo.test / demo — User (Basic)</div>
-              <div>priya@demo.test / demo — User (Plus)</div>
-              <div>morgan@brand.test / demo — Advertiser (approved)</div>
-            </div>
           </form>
         ) : (
           <form
@@ -450,6 +444,12 @@ function AuthScreen({ db, onLogin, onRegister }) {
             {role === "advertiser" && <div className="form-note"><Lock size={12} /> Advertiser accounts require admin approval before campaigns can run.</div>}
           </form>
         )}
+        <div className="trust-strip">
+          <div className="trust-strip-title">How it works</div>
+          <div className="trust-step"><Eye size={14} /> Watch a short, real advertisement</div>
+          <div className="trust-step"><ShieldCheck size={14} /> Pass a quick verification check</div>
+          <div className="trust-step"><Wallet size={14} /> Get paid — real payments via Stripe</div>
+        </div>
       </div>
     </div>
   );
@@ -716,7 +716,7 @@ function UserAds({ user, db, run, pushToast }) {
         <p>{atLimit ? "You've used all your views for today — come back tomorrow or upgrade for more." : `${limit - used} views remaining today.`}</p>
       </div>
       {profileIncomplete && ranked.length > 0 && (
-        <div className="inline-warning" style={{ marginBottom: 16 }}>
+        <div className="inline-warning" style={{ marginBottom: 16, background: "var(--surface-2)", color: "var(--ink-soft)", border: "1px solid var(--line)" }}>
           <AlertCircle size={14} /> Complete your Profile to move better-matched — and often higher-paying — ads to the top of your feed.
         </div>
       )}
@@ -782,9 +782,9 @@ function UserMembership({ user, db, run, pushToast }) {
   return (
     <div>
       <div className="page-head"><h2>Membership</h2><p>Higher tiers unlock more verified views — and a higher monthly earning ceiling.</p></div>
-      <div className="inline-warning" style={{ marginBottom: 16, fontSize: 12.5 }}>
+      <div className="inline-warning" style={{ marginBottom: 16, fontSize: 12.5, background: "var(--surface-2)", color: "var(--ink-soft)", border: "1px solid var(--line)" }}>
         The figures below are genuine ceilings, not typical outcomes — how close you get depends on real ad
-        supply. Right now there {activeCampaigns === 1 ? "is" : "are"} <strong>{activeCampaigns} active campaign{activeCampaigns === 1 ? "" : "s"}</strong>,
+        supply. Right now there {activeCampaigns === 1 ? "is" : "are"} <strong style={{ color: "var(--ink)" }}>{activeCampaigns} active campaign{activeCampaigns === 1 ? "" : "s"}</strong>,
         and we're growing that deliberately alongside how many people we let in.
       </div>
       <div className="plan-grid">
@@ -1000,7 +1000,8 @@ function UserWithdraw({ user, db, run, pushToast }) {
 function UserReferrals({ user, db }) {
   const referrerBonuses = db.transactions.filter((t) => t.type === "REFERRAL_BONUS" && t.userId === user.id && t.note === "referrer");
   const totalEarned = referrerBonuses.reduce((s, t) => s + t.amount, 0);
-  const shareText = `Join adspXce and get paid to watch verified ads — use my code ${user.referralCode} when you sign up.`;
+  const referralLink = `${window.location.origin}/?ref=${user.referralCode}`;
+  const shareText = `Join adspXce and get paid to watch verified ads — sign up with my link and your code is filled in automatically: ${referralLink}`;
 
   return (
     <div>
@@ -1010,11 +1011,24 @@ function UserReferrals({ user, db }) {
         <StatCard label="Earned from referrals" value={money(totalEarned)} tone="#52E3C2" />
       </div>
       <div className="card">
-        <div className="card-title">Your referral code</div>
-        <div className="referral-code">{user.referralCode}</div>
-        <p className="muted" style={{ fontSize: 12.5, marginTop: 10 }}>{shareText}</p>
+        <div className="card-title">Your referral link</div>
+        <p className="muted" style={{ fontSize: 12.5, marginBottom: 10 }}>
+          Anyone who opens this link lands straight on the signup form with your code already filled in —
+          nothing for them to type or figure out.
+        </p>
+        <div className="referral-code" style={{ fontSize: 13, wordBreak: "break-all" }}>{referralLink}</div>
         <button
           className="btn btn-primary"
+          style={{ marginTop: 10 }}
+          onClick={() => { navigator.clipboard?.writeText(referralLink); }}
+        >
+          Copy link
+        </button>
+        <div className="card-title" style={{ marginTop: 20 }}>Your referral code</div>
+        <p className="muted" style={{ fontSize: 12, marginBottom: 6 }}>Only needed if someone types it in manually instead of using your link.</p>
+        <div className="referral-code">{user.referralCode}</div>
+        <button
+          className="btn btn-ghost"
           style={{ marginTop: 10 }}
           onClick={() => { navigator.clipboard?.writeText(shareText); }}
         >
@@ -1901,7 +1915,7 @@ function AdminUsers({ db, run, pushToast }) {
       <div className="page-head"><h2>Users</h2><p>Verification, suspension and earnings oversight.</p></div>
       <div className="card">
       <table className="table">
-        <thead><tr><th>Name</th><th>Email</th><th>Membership</th><th>Balance</th><th>Trust</th><th>ID Verified</th><th>Verified</th><th>Status</th><th></th></tr></thead>
+        <thead><tr><th>Name</th><th>Email</th><th>Membership</th><th>Balance</th><th>Trust</th><th>ID Verified</th><th>Verified</th><th>Waitlist</th><th>Status</th><th></th></tr></thead>
         <tbody>
           {users.map((u) => (
             <tr key={u.id}>
@@ -1920,6 +1934,7 @@ function AdminUsers({ db, run, pushToast }) {
                 )}
               </td>
               <td>{u.verified ? <Check size={15} color="#52E3C2" /> : <span className="muted">No</span>}</td>
+              <td>{u.waitlisted ? <span style={{ color: "#E8C468", fontWeight: 700, fontSize: 11.5 }}>Waiting</span> : <span className="muted" style={{ fontSize: 11.5 }}>Admitted</span>}</td>
               <td>{u.suspended ? <Badge status="suspended" /> : <Badge status="active" />}</td>
               <td className="row-actions">
                 {!u.verified && <button className="btn-mini" onClick={async () => { const r = await run('SET_USER_FLAG', { userId: u.id, field: "verified", value: true }); pushToast(r.message || r.error, r.error ? "error" : "success"); }}>Verify</button>}
@@ -2573,9 +2588,11 @@ function GlobalStyle() {
       .role-toggle { display: flex; gap: 8px; margin-bottom: 4px; }
       .role-btn { flex: 1; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 9px 10px; font-size: 12.5px; font-weight: 600; color: var(--ink-soft); display: flex; align-items: center; justify-content: center; gap: 6px; }
       .role-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
-      .demo-hint { margin-top: 18px; padding: 12px 14px; background: var(--accent-soft); border-radius: 10px; font-size: 11.5px; color: #BFEEDC; font-family: 'IBM Plex Mono', monospace; }
-      .demo-hint-title { font-family: 'Inter', sans-serif; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; font-size: 10.5px; margin-bottom: 6px; }
       .form-note { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--ink-soft); }
+      .trust-strip { margin-top: 22px; padding: 14px 16px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; width: 100%; max-width: 380px; }
+      .trust-strip-title { font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; font-size: 10.5px; color: var(--ink-soft); margin-bottom: 10px; }
+      .trust-step { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--ink); padding: 4px 0; }
+      .trust-step svg { color: var(--accent); flex-shrink: 0; }
 
       /* ---------- Inputs / Buttons ---------- */
       .input { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; font-size: 13.5px; background: var(--surface); color: var(--ink); width: 100%; }

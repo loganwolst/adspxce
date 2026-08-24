@@ -74,7 +74,7 @@ function doRegister(db, { role, name, email, passwordHash, company, contact, ref
   }
   // Only actually waitlist if real capacity is exhausted right now — someone
   // registering while there's genuine room gets straight in, automatically.
-  const waitlisted = !!db.config.waitlistEnabled && admittedUserCount(db) >= waitlistCapacity(db);
+  const waitlisted = (db.config.waitlistEnabled ?? true) && admittedUserCount(db) >= waitlistCapacity(db);
   db.users[id] = {
     id, role: "user", name, email, passwordHash, membership: "basic", balance: 0, pendingWithdrawal: 0, totalEarned: 0,
     dailyViewsUsed: 0, dailyViewsDate: todayStr(), verified: false, suspended: false, waitlisted,
