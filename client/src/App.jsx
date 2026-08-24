@@ -261,16 +261,36 @@ function AdViewerModal({ campaign, variant, rewardAmount, onClose, onComplete })
 
 function LedgerTicker({ txns }) {
   const rows = txns.length ? txns.slice(0, 6) : [];
+  // A seamless infinite scroll: render the rows twice back-to-back, then
+  // animate the wrapper up by exactly 50% of its height — the moment that
+  // finishes, the second copy sits exactly where the first one started, so
+  // the loop point is invisible. Duration scales with row count so the
+  // scroll speed feels consistent regardless of how many rows there are.
+  const canScroll = rows.length >= 3;
+  const duration = Math.max(rows.length * 2.5, 6);
+
   return (
     <div className="ticker">
       <div className="ticker-head">Live ledger</div>
       {rows.length === 0 && <div className="ticker-empty">No verified views yet today.</div>}
-      {rows.map((t, i) => (
-        <div key={i} className="ticker-row">
-          <span className="ticker-type">{t.type.replace("_", " ")}</span>
-          <span className="ticker-amt">{money(t.amount ?? 0)}</span>
+      {rows.length > 0 && (
+        <div className="ticker-viewport">
+          <div className={canScroll ? "ticker-scroll" : ""} style={canScroll ? { animationDuration: `${duration}s` } : undefined}>
+            {rows.map((t, i) => (
+              <div key={`a-${i}`} className="ticker-row">
+                <span className="ticker-type">{t.type.replace("_", " ")}</span>
+                <span className="ticker-amt">{money(t.amount ?? 0)}</span>
+              </div>
+            ))}
+            {canScroll && rows.map((t, i) => (
+              <div key={`b-${i}`} className="ticker-row" aria-hidden="true">
+                <span className="ticker-type">{t.type.replace("_", " ")}</span>
+                <span className="ticker-amt">{money(t.amount ?? 0)}</span>
+              </div>
+            ))}
+          </div>
         </div>
-      ))}
+      )}
     </div>
   );
 }
@@ -2227,8 +2247,8 @@ function GlobalStyle() {
       }
       * { box-sizing: border-box; }
       html, body { margin: 0; padding: 0; height: 100%; background: var(--bg); }
-      #root { min-height: 100%; }
-      .root, .loading-screen { position: relative; font-family: 'Inter', sans-serif; color: var(--ink); background: var(--bg); min-height: 100%; overflow-x: hidden; }
+      #root { min-height: 100%; width: 100%; }
+      .root, .loading-screen { position: relative; font-family: 'Inter', sans-serif; color: var(--ink); background: var(--bg); min-height: 100%; width: 100%; overflow-x: hidden; }
       .root::before, .loading-screen::before {
         content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
         background:
@@ -2266,7 +2286,7 @@ function GlobalStyle() {
       .loading-mark { font-family: 'Space Grotesk', sans-serif; font-weight: 700; letter-spacing: 0.08em; font-size: 15px; color: var(--ink-soft); }
 
       /* ---------- Auth ---------- */
-      .auth-shell { display: grid; grid-template-columns: 1.1fr 1fr; min-height: 640px; }
+      .auth-shell { display: grid; grid-template-columns: 1.1fr 1fr; min-height: 640px; width: 100%; }
       @media (max-width: 860px) { .auth-shell { grid-template-columns: 1fr; } }
       .auth-hero {
         position: relative; overflow: hidden;
@@ -2294,7 +2314,7 @@ function GlobalStyle() {
           radial-gradient(1.5px 1.5px at 88% 85%, #fff, transparent);
       }
       .auth-hero > * { position: relative; z-index: 1; }
-      @keyframes twinkle { 0%, 100% { opacity: 0.45; } 50% { opacity: 0.85; } }
+      @keyframes twinkle { 0%, 100% { opacity: 0.4; } 28% { opacity: 0.9; } 52% { opacity: 0.55; } 78% { opacity: 0.85; } }
       .brand-mark { font-family: 'Space Grotesk', sans-serif; font-weight: 700; letter-spacing: 0; font-size: 19px; position: relative; z-index: 1; }
       .brand-mark.small { padding: 22px 22px 10px; font-size: 17px; color: var(--ink); }
       .hero-watermark { position: absolute; top: -60px; right: -20px; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 420px; line-height: 1; color: rgba(82,227,194,0.05); user-select: none; pointer-events: none; z-index: 0; }
@@ -2306,6 +2326,11 @@ function GlobalStyle() {
       .ticker { margin-top: auto; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 14px 16px; }
       .ticker-head { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: #8FA69F; margin-bottom: 8px; }
       .ticker-empty { font-size: 12px; color: #8FA69F; }
+      .ticker-viewport { max-height: 168px; overflow: hidden; position: relative; -webkit-mask-image: linear-gradient(180deg, transparent, #000 12%, #000 88%, transparent); mask-image: linear-gradient(180deg, transparent, #000 12%, #000 88%, transparent); }
+      .ticker-scroll { animation-name: ticker-scroll; animation-timing-function: linear; animation-iteration-count: infinite; }
+      .ticker-scroll:hover { animation-play-state: paused; }
+      @keyframes ticker-scroll { from { transform: translateY(0); } to { transform: translateY(-50%); } }
+      @media (prefers-reduced-motion: reduce) { .ticker-scroll { animation: none; } }
       .ticker-row { display: flex; justify-content: space-between; font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; padding: 4px 0; border-top: 1px dashed rgba(255,255,255,0.1); }
       .ticker-row:first-child { border-top: none; }
       .ticker-type { color: #C7D6D1; text-transform: capitalize; }
@@ -2346,7 +2371,7 @@ function GlobalStyle() {
       .btn-mini:hover { background: var(--bg); }
 
       /* ---------- Shell ---------- */
-      .app-shell { display: grid; grid-template-columns: 220px 1fr; min-height: 640px; }
+      .app-shell { display: grid; grid-template-columns: 220px 1fr; min-height: 640px; width: 100%; }
       @media (max-width: 760px) { .app-shell { grid-template-columns: 1fr; } .sidebar { flex-direction: row; overflow-x: auto; } .sidebar nav { flex-direction: row; } }
       .sidebar {
         background: radial-gradient(320px 200px at 0% 0%, rgba(82,227,194,0.05), transparent 60%), var(--surface);

@@ -23,6 +23,25 @@ package.json      Root scripts (build client, start server)
 
 ## Since the last build
 
+- **Fixed the app not filling the browser window on some setups**: the
+  top-level layout containers (`#root`, `.root`, `.auth-shell`,
+  `.app-shell`) had no explicit width set — normally that's fine since
+  block elements default to filling their parent, but something in the
+  cascade was letting it shrink instead. Made it explicit rather than
+  relying on default behaviour, which removes the ambiguity either way.
+- **The live ledger now actually feels live**: it continuously
+  auto-scrolls (duplicated content looping seamlessly, a standard
+  technique — not a real illusion trick, genuinely invisible where it
+  loops), pauses on hover so it's actually readable if you want to look,
+  and respects "reduce motion" system settings for anyone who's turned
+  that on.
+- **Twinkling stars now feel a bit more organic** — was a single uniform
+  smooth pulse across the whole starfield; now has an irregular rhythm
+  instead of one mechanical breathing motion. (Worth knowing: the
+  twinkle animation already existed before this — if it wasn't visible
+  before, that was almost certainly downstream of the width bug above,
+  not something separately broken.)
+
 - **Paid membership tiers now gate on real ad supply**: Upgraded/Gold stay
   fully visible (pricing, benefits, everything) but can't actually be
   purchased until there are enough active campaigns on the platform to
