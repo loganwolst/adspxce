@@ -1,4 +1,4 @@
-const { computeTrustScore } = require("./logic");
+const { computeTrustScore, waitlistCapacity } = require("./logic");
 
 const PUBLIC_LEDGER_LIMIT = 20;
 
@@ -22,7 +22,17 @@ function sanitizeDB(db, viewerId) {
     if (id === viewerId || isAdmin) {
       // Full record for yourself (or an admin) — just strip the password hash.
       const { passwordHash, ...full } = u;
-      if (u.role === "user") full.trustScore = computeTrustScore(u, db.transactions);
+      if (u.role === "user") {
+        full.trustScore = computeTrustScore(u, db.transactions);
+        if (u.waitlisted) {
+          // How many OTHER waitlisted users signed up earlier — a live,
+          // honest position, not a stored number that could go stale as
+          // people ahead of you get admitted.
+          full.waitlistPosition = 1 + Object.values(db.users).filter(
+            (o) => o.role === "user" && o.waitlisted && o.id !== id && o.createdAt < u.createdAt
+          ).length;
+        }
+      }
       users[id] = full;
     } else if (u.role === "advertiser") {
       // Other people only ever need to know an advertiser's public storefront
@@ -49,7 +59,12 @@ function sanitizeDB(db, viewerId) {
     ? db.transactions
     : db.transactions.filter((t) => t.userId === viewerId || t.advertiserId === viewerId);
 
-  return { ...db, users, orders, transactions, publicLedger: buildPublicLedger(db) };
+  return {
+    ...db, users, orders, transactions, publicLedger: buildPublicLedger(db),
+    waitlistCount: Object.values(db.users).filter((u) => u.role === "user" && u.waitlisted).length,
+    activeCampaignCount: Object.values(db.campaigns).filter((c) => c.status === "active").length,
+    waitlistCapacity: waitlistCapacity(db),
+  };
 }
 
 module.exports = { sanitizeDB };

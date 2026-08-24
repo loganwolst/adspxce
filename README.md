@@ -23,6 +23,88 @@ package.json      Root scripts (build client, start server)
 
 ## Since the last build
 
+- **Replaced the guessed "8 users per campaign" with a properly-derived
+  formula**, grounded in each campaign's real economics rather than a
+  flat number: every active campaign's actual daily budget ÷ its CPV
+  gives genuine daily views deliverable, summed across all active
+  campaigns, then divided by (Basic tier's daily cap × an admin-tunable
+  safety multiplier, defaults to 4). A campaign with a bigger budget now
+  genuinely contributes more capacity than a small one — verified
+  directly that a £500/day campaign contributes roughly 500x more than
+  a £3/day one, which the old flat ratio couldn't reflect at all.
+  - Considered adding a hardcoded "at N campaigns, disable the waitlist
+    entirely" rule — decided against it. This formula already scales
+    toward effectively-unlimited capacity as real campaign supply grows,
+    with no ceiling and no second number to maintain or get wrong.
+  - Moved the capacity calculation itself server-side (exposed via
+    `sanitizeDB`) so the client never has a second copy of this formula
+    that could quietly drift out of sync with the real one.
+
+- **Waitlist admission is now fully automatic** — no admin click needed.
+  Capacity is a simple, transparent, admin-tunable formula (active
+  campaigns × a "users per campaign" number, defaults to 8) — deliberately
+  not a precise scientific model, since there isn't a single objectively
+  correct ratio, just a clearly-labelled guideline you can adjust as you
+  watch real usage. Two important design decisions, both verified
+  directly with real tests:
+  - **Registering while there's genuine room admits you immediately** —
+    the waitlist only kicks in once real capacity is actually full, not
+    unconditionally for everyone.
+  - **Admission happens the instant a campaign goes active** — that's
+    the exact moment new capacity appears, so anyone next in line gets
+    in right then, in real time, not on a delay or a periodic check.
+  - **Capacity shrinking (a campaign pausing or running out of budget)
+    never revokes access already granted** — only pauses further
+    admissions until capacity grows back. Verified this directly: paused
+    a campaign that dropped capacity below the current admitted count,
+    confirmed nobody already in got kicked back to the waitlist.
+  - The manual "admit one" / "admit a batch" admin controls are kept as
+    an explicit override for edge cases, not removed — automatic is now
+    the primary path, not the only one.
+
+- **Waitlist for new user signups**, so user growth stays matched to real
+  ad supply instead of getting ahead of it:
+  - Only regular users get waitlisted — advertiser signups are never
+    affected, since more advertisers is exactly what solves the
+    underlying problem.
+  - Admin-toggleable (Configuration → "New signups"), defaults **on**.
+  - A waitlisted account genuinely can't watch ads — enforced
+    server-side, not just hidden in the UI — but sees an honest status
+    screen with their real position and real current campaign count, not
+    a fake "you'll hear from us soon" (no real email system exists yet,
+    so that promise would've been dishonest).
+  - Admin gets a dedicated Waitlist page — admit people one at a time or
+    in a batch, oldest-first (fair, first-come).
+  - The same real numbers (waitlist size, active campaigns) now show up
+    as honest social proof in three places: the public login screen, the
+    Membership page (context for the earning-ceiling figures), and the
+    advertiser dashboard (a genuine reason for them to launch more
+    campaigns — more supply means more people let in sooner).
+  - Verified the whole lifecycle directly: existing accounts weren't
+    retroactively caught by this, positions update live as people get
+    admitted, the server-side block actually prevents earning (not just
+    a UI hint), and the public aggregate numbers never expose anyone's
+    individual identity.
+
+- **Advisory CPV pricing recommendation** on campaign creation — factors
+  in video length, whether it includes an end-of-video question (real,
+  sourced industry data: interactive formats genuinely command a
+  20-40% premium over passive views), and targeting specificity
+  (narrower targeting is worth *more* per view, not less — the correct
+  direction, matching how real ad platforms price it). Purely advisory,
+  by design: the recommendation is shown, but advertisers still set
+  their own price. Verified the calculation directly, including that
+  the upper clamp genuinely engages rather than just happening not to
+  be hit in normal cases.
+  - Worth knowing: the "includes a question" checkbox affects the price
+    recommendation now, but the actual on-screen question feature
+    itself isn't built yet — flagged clearly in the UI so it's not
+    mistaken for something live.
+  - Also added: the ad platform currently uses one fixed 6-second
+    verification timer for every campaign regardless of stated video
+    length — the new "video length" field feeds pricing guidance, not
+    the actual viewer-facing timer, which is a separate mechanic.
+
 - **Found the actual root cause of the persistent bottom gap**: removing
   the centering fixed the top gap, but the container was still forced
   to `min-height: 100vh` — always at least a full screen tall, even

@@ -53,6 +53,8 @@ const ACTIONS = {
   SET_USER_FLAG: { fn: logic.doSetUserFlag, level: "admin" },
   UPDATE_CONFIG: { fn: logic.doUpdateConfig, level: "admin" },
   CLEAR_IDENTITY_FLAG: { fn: logic.doClearIdentityFlag, level: "admin" },
+  ADMIT_FROM_WAITLIST: { fn: logic.doAdmitFromWaitlist, level: "admin" },
+  ADMIT_WAITLIST_BATCH: { fn: logic.doAdmitWaitlistBatch, level: "admin" },
   CREATE_PRODUCT: { fn: logic.doCreateProduct, level: "self" },
   SET_PRODUCT_STATUS: { fn: logic.doSetProductStatus, level: "self" },
   RESTOCK_PRODUCT: { fn: logic.doRestockProduct, level: "self" },

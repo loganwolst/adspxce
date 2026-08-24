@@ -344,6 +344,36 @@ function ShootingStars() {
   );
 }
 
+function WaitlistScreen({ user, db, onLogout }) {
+  const activeCampaigns = db.activeCampaignCount ?? 0;
+  const waitlistCount = db.waitlistCount ?? 0;
+  return (
+    <div className="auth-shell">
+      <div className="auth-hero">
+        <div className="hero-watermark">X</div>
+        <div className="auth-brand"><span className="brand-mark">adspXce</span></div>
+        <div className="hero-eyebrow">You're on the list</div>
+        <h1>Hey {user.name.split(" ")[0]}, you're #{user.waitlistPosition ?? "—"} in line.</h1>
+        <p>
+          Admission happens automatically, in real time, tied to how many advertisers we actually have —
+          so when you do get in, there's genuinely enough to watch, not the same handful of ads on repeat.
+          The instant there's enough room, you're in — no one has to review or approve it.
+        </p>
+        <div className="auth-hero-facts">
+          <div><Megaphone size={16} /> {activeCampaigns} active campaign{activeCampaigns === 1 ? "" : "s"} right now</div>
+          <div><Clock size={16} /> {waitlistCount} people waiting alongside you</div>
+        </div>
+        <p className="muted" style={{ fontSize: 12.5 }}>
+          Just log in again any time to check whether you've moved up.
+        </p>
+      </div>
+      <div className="auth-panel">
+        <button className="btn btn-ghost" onClick={onLogout}><LogOut size={15} /> Log out</button>
+      </div>
+    </div>
+  );
+}
+
 function AuthScreen({ db, onLogin, onRegister }) {
   const [mode, setMode] = useState("login");
   const [role, setRole] = useState("user");
@@ -362,6 +392,7 @@ function AuthScreen({ db, onLogin, onRegister }) {
         <div className="auth-hero-facts">
           <div><TrendingUp size={16} /> CPV from {money(db.config.cpvMin)}–{money(db.config.cpvMax)}</div>
           <div><ShieldCheck size={16} /> Higher tiers earn a better rate on every view</div>
+          {db.waitlistCount > 0 && <div><Clock size={16} /> {db.waitlistCount} people already waiting to join</div>}
         </div>
         <LedgerTicker txns={db.publicLedger || []} />
       </div>
@@ -751,6 +782,11 @@ function UserMembership({ user, db, run, pushToast }) {
   return (
     <div>
       <div className="page-head"><h2>Membership</h2><p>Higher tiers unlock more verified views — and a higher monthly earning ceiling.</p></div>
+      <div className="inline-warning" style={{ marginBottom: 16, fontSize: 12.5 }}>
+        The figures below are genuine ceilings, not typical outcomes — how close you get depends on real ad
+        supply. Right now there {activeCampaigns === 1 ? "is" : "are"} <strong>{activeCampaigns} active campaign{activeCampaigns === 1 ? "" : "s"}</strong>,
+        and we're growing that deliberately alongside how many people we let in.
+      </div>
       <div className="plan-grid">
         {tiers.map((t) => {
           const isCurrent = user.membership === t;
@@ -1314,6 +1350,12 @@ function AdvertiserDashboard({ adv, db }) {
         <StatCard label="Total verified views" value={totalViews} />
         <StatCard label="Subscription" value={adv.subscriptionActive ? "Active" : "Inactive"} tone={adv.subscriptionActive ? "#52E3C2" : "#F0796B"} />
       </div>
+      {db.waitlistCount > 0 && (
+        <div className="inline-warning" style={{ background: "var(--accent-soft)", color: "var(--accent)", marginBottom: 16 }}>
+          <Users size={14} /> <strong>{db.waitlistCount} people</strong> are waiting to join and start watching ads — we're deliberately
+          admitting them as advertiser supply grows, so more active campaigns from you means more real people let in sooner.
+        </div>
+      )}
       <div className="card">
         <div className="card-title">Recent billing</div>
         <TxnTable txns={txns.slice(0, 8)} perspective="advertiser" db={db} viewerId={adv.id} />
@@ -1394,17 +1436,40 @@ function AdvertiserBilling({ adv, db, run, pushToast }) {
   );
 }
 
+function recommendCPV({ cpvMin, cpvMax, videoLengthSeconds, hasQuestion, interestTags, ageRange }) {
+  let price = cpvMin;
+  const baselineLength = 15; // a fair "default" reference length
+  const length = videoLengthSeconds ? parseInt(videoLengthSeconds, 10) : baselineLength;
+  const lengthDiff = Math.max(0, length - baselineLength);
+  // Longer videos demand more attention, but not linearly — capped at +40% for double-length or beyond.
+  const lengthMultiplier = 1 + Math.min(lengthDiff / baselineLength, 1) * 0.4;
+  price *= lengthMultiplier;
+  // Real, sourced industry data: interactive/engaged formats command a genuine 20-40% premium.
+  if (hasQuestion) price *= 1.3;
+  // Narrower targeting reaches more relevant people, which is worth more per view, not less.
+  const isTargeted = (interestTags && interestTags.length > 0) || (ageRange && ageRange !== "All");
+  if (isTargeted) price *= 1.15;
+  price = Math.max(cpvMin, Math.min(cpvMax, price));
+  return Math.round(price * 100) / 100;
+}
+
 function CampaignForm({ cfg, onSubmit }) {
   const [form, setForm] = useState({ name: "", adTitle: "", content: "", destinationUrl: "", cpv: cfg.cpvMin.toFixed(2), totalBudget: "", dailyBudget: "", targetAudience: "", geo: "United Kingdom" });
   const [interestTags, setInterestTags] = useState([]);
   const [ageRange, setAgeRange] = useState("All");
+  const [videoLengthSeconds, setVideoLengthSeconds] = useState("15");
+  const [hasQuestion, setHasQuestion] = useState(false);
   const [abTest, setAbTest] = useState(false);
   const [variantBTitle, setVariantBTitle] = useState("");
   const [variantBContent, setVariantBContent] = useState("");
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
   const toggleInterest = (tag) => setInterestTags((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]));
+  const recommended = useMemo(
+    () => recommendCPV({ cpvMin: cfg.cpvMin, cpvMax: cfg.cpvMax, videoLengthSeconds, hasQuestion, interestTags, ageRange }),
+    [cfg.cpvMin, cfg.cpvMax, videoLengthSeconds, hasQuestion, interestTags, ageRange]
+  );
   return (
-    <form className="stack-form" onSubmit={(e) => { e.preventDefault(); onSubmit({ ...form, interestTags, ageRange, variantBTitle: abTest ? variantBTitle : "", variantBContent: abTest ? variantBContent : "" }); }}>
+    <form className="stack-form" onSubmit={(e) => { e.preventDefault(); onSubmit({ ...form, interestTags, ageRange, videoLengthSeconds, hasQuestion, variantBTitle: abTest ? variantBTitle : "", variantBContent: abTest ? variantBContent : "" }); }}>
       <label>Campaign name<input className="input" value={form.name} onChange={set("name")} required /></label>
       <label>Advertisement title<input className="input" value={form.adTitle} onChange={set("adTitle")} required /></label>
       <label>Advertisement content<textarea className="input" rows={3} value={form.content} onChange={set("content")} required /></label>
@@ -1413,6 +1478,18 @@ function CampaignForm({ cfg, onSubmit }) {
         <label>CPV ({money(cfg.cpvMin)}–{money(cfg.cpvMax)})<input className="input" type="number" step="0.01" min={cfg.cpvMin} max={cfg.cpvMax} value={form.cpv} onChange={set("cpv")} required /></label>
         <label>Total budget<input className="input" type="number" step="0.01" min="0" value={form.totalBudget} onChange={set("totalBudget")} required /></label>
       </div>
+      <div className="inline-warning" style={{ background: "var(--accent-soft)", color: "var(--accent)", fontSize: 12.5 }}>
+        Recommended CPV based on this campaign's details: <strong>{money(recommended)}</strong> — just a guide, you can still set any price in range.
+        <button type="button" className="btn-mini" style={{ marginLeft: 10 }} onClick={() => setForm((f) => ({ ...f, cpv: recommended.toFixed(2) }))}>Use this</button>
+      </div>
+      <div className="form-row">
+        <label>Video length (seconds)<input className="input" type="number" min="1" value={videoLengthSeconds} onChange={(e) => setVideoLengthSeconds(e.target.value)} /></label>
+        <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 22 }}>
+          <input type="checkbox" checked={hasQuestion} onChange={(e) => setHasQuestion(e.target.checked)} />
+          Includes an end-of-video question
+        </label>
+      </div>
+      {hasQuestion && <p className="muted" style={{ marginTop: -8, fontSize: 12 }}>Reflected in pricing now — the actual on-screen question feature is coming soon, not live in viewer sessions yet.</p>}
       <div className="form-row">
         <label>Daily budget (optional)<input className="input" type="number" step="0.01" min="0" value={form.dailyBudget} onChange={set("dailyBudget")} /></label>
         <label>Geographic target<input className="input" value={form.geo} onChange={set("geo")} /></label>
@@ -1758,6 +1835,65 @@ function AdminOverview({ db }) {
   );
 }
 
+function AdminWaitlist({ db, run, pushToast }) {
+  const allUsers = Object.values(db.users).filter((u) => u.role === "user");
+  const waitlisted = allUsers.filter((u) => u.waitlisted).sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
+  const admittedCount = allUsers.length - waitlisted.length;
+  const capacity = db.waitlistCapacity ?? 0;
+  const roomLeft = Math.max(0, capacity - admittedCount);
+  const [batchCount, setBatchCount] = useState("5");
+
+  return (
+    <div>
+      <div className="page-head"><h2>Waitlist</h2><p>Admits automatically based on real ad supply — the moment a new campaign goes active, the next people in line get in.</p></div>
+      <div className="stat-grid">
+        <StatCard label="Waiting" value={waitlisted.length} />
+        <StatCard label="Admitted" value={admittedCount} />
+        <StatCard label="Current capacity" value={capacity} sub={`Based on real budgets across ${db.activeCampaignCount ?? 0} active campaigns`} tone="#52E3C2" />
+        <StatCard label="Room right now" value={roomLeft} sub={roomLeft > 0 ? "Should already be empty below" : "At capacity"} />
+      </div>
+      {waitlisted.length > 0 && (
+        <div className="card">
+          <div className="card-title">Manual override — admit a batch anyway</div>
+          <p className="muted" style={{ fontSize: 12.5, marginBottom: 10 }}>
+            This happens automatically as campaigns go active — use this only if you want to let people in ahead
+            of that, e.g. for a special case. Admits the longest-waiting people first.
+          </p>
+          <div className="inline-form">
+            <input className="input" type="number" min="1" max={waitlisted.length} value={batchCount} onChange={(e) => setBatchCount(e.target.value)} />
+            <button className="btn btn-primary" onClick={async () => { const r = await run('ADMIT_WAITLIST_BATCH', { count: parseInt(batchCount, 10) }); pushToast(r.message || r.error, r.error ? "error" : "success"); }}>
+              Admit next {batchCount}
+            </button>
+          </div>
+        </div>
+      )}
+      <div className="card">
+        <table className="table">
+          <thead><tr><th>Position</th><th>Name</th><th>Email</th><th>Joined queue</th><th></th></tr></thead>
+          <tbody>
+            {waitlisted.length === 0 && (
+              <tr><td colSpan={5}><EmptyState icon={Clock} title="No one's waiting" sub="Every registered user is fully admitted right now." /></td></tr>
+            )}
+            {waitlisted.map((u, i) => (
+              <tr key={u.id}>
+                <td className="mono">#{i + 1}</td>
+                <td>{u.name}</td>
+                <td className="muted">{u.email}</td>
+                <td className="muted">{fmtDate(u.createdAt)}</td>
+                <td>
+                  <button className="btn-mini" onClick={async () => { const r = await run('ADMIT_FROM_WAITLIST', { userId: u.id }); pushToast(r.message || r.error, r.error ? "error" : "success"); }}>
+                    Admit
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 function AdminUsers({ db, run, pushToast }) {
   const users = Object.values(db.users).filter((u) => u.role === "user").sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   return (
@@ -1922,6 +2058,8 @@ function AdminConfig({ db, run, pushToast }) {
     trustAutoApproveThreshold: db.config.trustAutoApproveThreshold ?? 80,
     loyaltyBonusDaysRequired: db.config.loyaltyBonusDaysRequired ?? 4, loyaltyBonusAmount: db.config.loyaltyBonusAmount ?? 0.5,
     minCampaignsForUpgrade: db.config.minCampaignsForUpgrade ?? 5,
+    waitlistEnabled: db.config.waitlistEnabled ?? true,
+    waitlistSafetyMultiplier: db.config.waitlistSafetyMultiplier ?? 4,
     basicViews: db.config.membership.basic.views, basicRate: db.config.membership.basic.sharePct,
     plusViews: db.config.membership.plus.views, plusPrice: db.config.membership.plus.price, plusRate: db.config.membership.plus.sharePct,
     premiumViews: db.config.membership.premium.views, premiumPrice: db.config.membership.premium.price, premiumRate: db.config.membership.premium.sharePct,
@@ -1936,6 +2074,8 @@ function AdminConfig({ db, run, pushToast }) {
       trustAutoApproveThreshold: parseFloat(form.trustAutoApproveThreshold),
       loyaltyBonusDaysRequired: parseInt(form.loyaltyBonusDaysRequired, 10), loyaltyBonusAmount: parseFloat(form.loyaltyBonusAmount),
       minCampaignsForUpgrade: parseInt(form.minCampaignsForUpgrade, 10),
+      waitlistEnabled: !!form.waitlistEnabled,
+      waitlistSafetyMultiplier: parseFloat(form.waitlistSafetyMultiplier),
       membership: {
         basic: { views: parseInt(form.basicViews, 10), price: 0, sharePct: parseFloat(form.basicRate) },
         plus: { views: parseInt(form.plusViews, 10), price: parseFloat(form.plusPrice), sharePct: parseFloat(form.plusRate) },
@@ -1985,6 +2125,22 @@ function AdminConfig({ db, run, pushToast }) {
         <div className="form-row">
           <label>Min. active campaigns to unlock paid tiers<input className="input" type="number" step="1" min="0" value={form.minCampaignsForUpgrade} onChange={set("minCampaignsForUpgrade")} /></label>
         </div>
+        <div className="card-title" style={{ marginTop: 18 }}>New signups</div>
+        <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+          <input type="checkbox" checked={form.waitlistEnabled} onChange={(e) => setForm((f) => ({ ...f, waitlistEnabled: e.target.checked }))} />
+          Automatically admit new signups based on real ad supply, waitlisting the rest
+        </label>
+        <div className="form-row" style={{ marginTop: 10 }}>
+          <label>Variety safety multiplier<input className="input" type="number" step="0.5" min="0.5" value={form.waitlistSafetyMultiplier} onChange={set("waitlistSafetyMultiplier")} /></label>
+        </div>
+        <p className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+          Capacity is calculated from real campaign budgets, not a guessed number per campaign — every active
+          campaign's actual daily budget ÷ its CPV gives real daily views deliverable, summed across all of them,
+          then divided by (Basic tier's daily cap × this multiplier). Higher multiplier = more buffer for variety,
+          but a lower capacity right now. The moment a new campaign goes active, anyone next in line is admitted
+          automatically, in real time — no manual approval needed. Advertiser signups are never waitlisted. You can
+          still manually admit or batch-admit from the Waitlist page any time, as an override.
+        </p>
         <button className="btn btn-primary" type="submit" style={{ marginTop: 14 }}><Settings size={15} /> Save configuration</button>
       </form>
       <AdminBackups />
@@ -2113,6 +2269,7 @@ const NAV = {
   admin: [
     { key: "dashboard", label: "Overview", icon: Home },
     { key: "users", label: "Users", icon: Users },
+    { key: "waitlist", label: "Waitlist", icon: Clock },
     { key: "advertisers", label: "Advertisers", icon: Building2 },
     { key: "campaigns", label: "Campaigns", icon: Megaphone },
     { key: "withdrawals", label: "Withdrawals", icon: Wallet },
@@ -2147,6 +2304,7 @@ function Shell({ user, db, run, pushToast, onLogout }) {
   } else if (user.role === "admin") {
     if (page === "dashboard") content = <AdminOverview db={db} />;
     else if (page === "users") content = <AdminUsers db={db} run={run} pushToast={pushToast} />;
+    else if (page === "waitlist") content = <AdminWaitlist db={db} run={run} pushToast={pushToast} />;
     else if (page === "advertisers") content = <AdminAdvertisers db={db} run={run} pushToast={pushToast} />;
     else if (page === "campaigns") content = <AdminCampaigns db={db} run={run} pushToast={pushToast} />;
     else if (page === "withdrawals") content = <AdminWithdrawals db={db} run={run} pushToast={pushToast} />;
@@ -2278,7 +2436,9 @@ export default function App() {
       <span className="star-layer layer-2" aria-hidden="true" />
       <span className="star-layer layer-3" aria-hidden="true" />
       <ShootingStars />
-      {currentUser ? (
+      {currentUser && currentUser.waitlisted ? (
+        <WaitlistScreen user={currentUser} db={db} onLogout={handleLogout} />
+      ) : currentUser ? (
         <Shell user={currentUser} db={db} run={run} pushToast={pushToast} onLogout={handleLogout} />
       ) : (
         <AuthScreen db={db} onLogin={handleLogin} onRegister={handleRegister} />

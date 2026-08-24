@@ -29,12 +29,13 @@ function seedDB() {
         premium: { views: 100, price: 25, sharePct: 70 },
       },
       advertiserSubscriptionPrice: 29, withdrawalMinimum: 25, trustAutoApproveThreshold: 80,
-      loyaltyBonusDaysRequired: 4, loyaltyBonusAmount: 0.50, minCampaignsForUpgrade: 5,
+      loyaltyBonusDaysRequired: 4, loyaltyBonusAmount: 0.50, minCampaignsForUpgrade: 5, waitlistEnabled: true,
+      waitlistSafetyMultiplier: 4,
     },
     users: {
       [adminId]: { id: adminId, role: "admin", name: "Admin", email: "admin@adspxce.test", passwordHash: hash("admin"), createdAt: nowISO() },
-      [u1]: { id: u1, role: "user", name: "Jordan Blake", email: "jordan@demo.test", passwordHash: hash("demo"), membership: "basic", balance: 4.80, pendingWithdrawal: 0, totalEarned: 4.80, dailyViewsUsed: 3, dailyViewsDate: todayStr(), verified: true, suspended: false, profile: { interests: ["Outdoors", "Fitness"], ageRange: "25-34", region: "North West England" }, mutedAdvertisers: [], mutedInterests: [], referralCode: "JORDAN1", referredBy: null, referralBonusPaid: true, stripeConnectAccountId: null, stripeConnectOnboarded: false, lastLoyaltyBonusWeek: null, identityVerificationStatus: "none", identityVerificationSessionId: null, identityVerifiedAt: null, identityVerifiedName: null, identityFingerprint: null, identityDuplicateFlag: false, createdAt: nowISO() },
-      [u2]: { id: u2, role: "user", name: "Priya Shah", email: "priya@demo.test", passwordHash: hash("demo"), membership: "plus", balance: 18.20, pendingWithdrawal: 0, totalEarned: 42.10, dailyViewsUsed: 0, dailyViewsDate: todayStr(), verified: true, suspended: false, profile: { interests: ["Technology", "Finance"], ageRange: "25-34", region: "London" }, mutedAdvertisers: [], mutedInterests: [], referralCode: "PRIYA1", referredBy: null, referralBonusPaid: true, stripeConnectAccountId: null, stripeConnectOnboarded: false, lastLoyaltyBonusWeek: null, identityVerificationStatus: "none", identityVerificationSessionId: null, identityVerifiedAt: null, identityVerifiedName: null, identityFingerprint: null, identityDuplicateFlag: false, createdAt: nowISO() },
+      [u1]: { id: u1, role: "user", name: "Jordan Blake", email: "jordan@demo.test", passwordHash: hash("demo"), membership: "basic", balance: 4.80, pendingWithdrawal: 0, totalEarned: 4.80, dailyViewsUsed: 3, dailyViewsDate: todayStr(), verified: true, suspended: false, profile: { interests: ["Outdoors", "Fitness"], ageRange: "25-34", region: "North West England" }, mutedAdvertisers: [], mutedInterests: [], referralCode: "JORDAN1", referredBy: null, referralBonusPaid: true, stripeConnectAccountId: null, stripeConnectOnboarded: false, lastLoyaltyBonusWeek: null, identityVerificationStatus: "none", identityVerificationSessionId: null, identityVerifiedAt: null, identityVerifiedName: null, identityFingerprint: null, identityDuplicateFlag: false, waitlisted: false, createdAt: nowISO() },
+      [u2]: { id: u2, role: "user", name: "Priya Shah", email: "priya@demo.test", passwordHash: hash("demo"), membership: "plus", balance: 18.20, pendingWithdrawal: 0, totalEarned: 42.10, dailyViewsUsed: 0, dailyViewsDate: todayStr(), verified: true, suspended: false, profile: { interests: ["Technology", "Finance"], ageRange: "25-34", region: "London" }, mutedAdvertisers: [], mutedInterests: [], referralCode: "PRIYA1", referredBy: null, referralBonusPaid: true, stripeConnectAccountId: null, stripeConnectOnboarded: false, lastLoyaltyBonusWeek: null, identityVerificationStatus: "none", identityVerificationSessionId: null, identityVerifiedAt: null, identityVerifiedName: null, identityFingerprint: null, identityDuplicateFlag: false, waitlisted: false, createdAt: nowISO() },
       [adv1]: { id: adv1, role: "advertiser", name: "Morgan Lee", email: "morgan@brand.test", passwordHash: hash("demo"), company: "Northwind Outfitters", contact: "morgan@brand.test", advertiserStatus: "approved", advertiserBalance: 640.00, subscriptionActive: true, createdAt: nowISO() },
     },
     campaigns: {
@@ -71,22 +72,31 @@ function doRegister(db, { role, name, email, passwordHash, company, contact, ref
     const referrer = Object.values(db.users).find((u) => u.role === "user" && u.referralCode === referralCode.trim().toUpperCase());
     if (referrer) referredBy = referrer.id;
   }
+  // Only actually waitlist if real capacity is exhausted right now — someone
+  // registering while there's genuine room gets straight in, automatically.
+  const waitlisted = !!db.config.waitlistEnabled && admittedUserCount(db) >= waitlistCapacity(db);
   db.users[id] = {
     id, role: "user", name, email, passwordHash, membership: "basic", balance: 0, pendingWithdrawal: 0, totalEarned: 0,
-    dailyViewsUsed: 0, dailyViewsDate: todayStr(), verified: false, suspended: false,
+    dailyViewsUsed: 0, dailyViewsDate: todayStr(), verified: false, suspended: false, waitlisted,
     profile: { interests: [], ageRange: null, region: "" }, mutedAdvertisers: [], mutedInterests: [],
     referralCode: generateReferralCode(db), referredBy, referralBonusPaid: false,
     stripeConnectAccountId: null, stripeConnectOnboarded: false, lastLoyaltyBonusWeek: null,
     identityVerificationStatus: "none", identityVerificationSessionId: null, identityVerifiedAt: null,
     identityVerifiedName: null, identityFingerprint: null, identityDuplicateFlag: false, createdAt: nowISO(),
   };
-  return { message: "Account created. Welcome to adspXce.", newId: id };
+  return {
+    message: waitlisted
+      ? "You're on the waitlist — we're growing advertiser supply and letting people in as we go."
+      : "Account created. Welcome to adspXce.",
+    newId: id,
+  };
 }
 
 function doCompleteView(db, { userId, campaignId, attentionPassed, interruptions, variant }) {
   const user = db.users[userId];
   const campaign = db.campaigns[campaignId];
   if (!user || !campaign) return { error: "This advertisement is no longer available." };
+  if (user.waitlisted) return { error: "You're still on the waitlist — hang tight, we're letting people in as advertiser supply grows." };
   if (campaign.status !== "active") return { error: "This campaign is no longer active." };
   const cfg = db.config;
   const limit = cfg.membership[user.membership].views;
@@ -279,6 +289,74 @@ function doClearIdentityFlag(db, { userId }) {
   return { message: "Flag cleared — withdrawals unblocked." };
 }
 
+/* ================================= WAITLIST ================================= */
+// Capacity is deliberately a simple, transparent, admin-tunable ratio
+// (active campaigns x a "users per campaign" number) rather than a precise
+// scientific model — there's no single objectively correct ratio, so this
+// stays a clearly-labelled, adjustable guideline. Automatic admission only
+// ever GRANTS access, never revokes it — if capacity later shrinks (a
+// campaign runs out of budget), nobody already admitted loses access; the
+// system just stops admitting new people until capacity grows again.
+
+function waitlistedUsersOldestFirst(db) {
+  return Object.values(db.users)
+    .filter((u) => u.role === "user" && u.waitlisted)
+    .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
+}
+
+function admittedUserCount(db) {
+  return Object.values(db.users).filter((u) => u.role === "user" && !u.waitlisted).length;
+}
+
+function waitlistCapacity(db) {
+  const cfg = db.config;
+  // Real economics, not a guessed flat number per campaign — a campaign
+  // with a bigger daily budget or a lower CPV can genuinely support more
+  // views per day, and this should reflect that directly.
+  const totalDailySupply = Object.values(db.campaigns)
+    .filter((c) => c.status === "active")
+    .reduce((sum, c) => sum + (c.cpv > 0 ? c.dailyBudget / c.cpv : 0), 0);
+  // Every newly-admitted user starts on Basic (paid tiers are separately
+  // gated), so Basic's daily cap is the right worst-case-per-user figure.
+  const basicDailyCap = cfg.membership.basic.views;
+  const multiplier = cfg.waitlistSafetyMultiplier ?? 4;
+  const perUserDemand = basicDailyCap * multiplier;
+  if (perUserDemand <= 0) return 0;
+  return Math.floor(totalDailySupply / perUserDemand);
+}
+
+// Call this any time active campaign supply might have just increased —
+// admits as many oldest-waiting people as new capacity now allows.
+function autoAdmitFromWaitlist(db) {
+  const capacity = waitlistCapacity(db);
+  let admitted = admittedUserCount(db);
+  const queue = waitlistedUsersOldestFirst(db);
+  let count = 0;
+  for (const u of queue) {
+    if (admitted >= capacity) break;
+    u.waitlisted = false;
+    admitted++;
+    count++;
+  }
+  return count;
+}
+
+function doAdmitFromWaitlist(db, { userId }) {
+  const user = db.users[userId];
+  if (!user) return { error: "User not found." };
+  if (!user.waitlisted) return { error: "This account isn't on the waitlist." };
+  user.waitlisted = false;
+  return { message: `${user.name} admitted from the waitlist.` };
+}
+
+function doAdmitWaitlistBatch(db, { count }) {
+  const n = Math.max(0, parseInt(count, 10) || 0);
+  const queue = waitlistedUsersOldestFirst(db);
+  const toAdmit = queue.slice(0, n);
+  toAdmit.forEach((u) => { u.waitlisted = false; });
+  return { message: `Admitted ${toAdmit.length} of ${queue.length} waitlisted user(s).` };
+}
+
 function doUpgradeMembership(db, { userId, tier }) {
   const user = db.users[userId];
   const cfg = db.config;
@@ -336,6 +414,8 @@ function doCreateCampaign(db, { userId, form }) {
     dailyBudget: round2(parseFloat(form.dailyBudget) || totalBudget),
     targetAudience: form.targetAudience || "All", geo: form.geo || "United Kingdom",
     interestTags, ageRange, variantB,
+    videoLengthSeconds: form.videoLengthSeconds ? Math.max(1, parseInt(form.videoLengthSeconds, 10)) : null,
+    hasQuestion: !!form.hasQuestion,
     status: "pending", createdAt: nowISO(),
   };
   db.transactions.unshift({ id: uid("txn"), type: "CAMPAIGN_RESERVE", status: "COMPLETED", timestamp: nowISO(), userId, campaignId: id, amount: totalBudget });
@@ -351,7 +431,9 @@ function doSetCampaignStatus(db, { campaignId, status }) {
     db.users[c.advertiserId].advertiserBalance = round2(db.users[c.advertiserId].advertiserBalance + refund);
     db.transactions.unshift({ id: uid("txn"), type: "CAMPAIGN_REFUND", status: "COMPLETED", timestamp: nowISO(), userId: c.advertiserId, campaignId, amount: refund });
   }
+  const wasActive = c.status === "active";
   c.status = status;
+  if (!wasActive && status === "active") autoAdmitFromWaitlist(db);
   return { message: `Campaign marked as ${status}.` };
 }
 
@@ -387,7 +469,11 @@ function doUpdateConfig(db, { patch }) {
   if (patch.minCampaignsForUpgrade !== undefined && patch.minCampaignsForUpgrade < 0) {
     return { error: "Minimum campaigns can't be negative." };
   }
+  if (patch.waitlistSafetyMultiplier !== undefined && patch.waitlistSafetyMultiplier <= 0) {
+    return { error: "Safety multiplier must be greater than zero." };
+  }
   db.config = { ...db.config, ...patch, membership: patch.membership };
+  autoAdmitFromWaitlist(db); // the ratio itself changing can also increase capacity
   return { message: "Platform configuration saved." };
 }
 
@@ -659,4 +745,5 @@ module.exports = {
   doMarkWithdrawalTransferred, doFailRealWithdrawal, doSetStripeConnectAccount, doSetStripeConnectStatus,
   getWeekAnchor, distinctActiveDaysThisWeek, maybePayLoyaltyBonus,
   doSetIdentitySession, doApplyIdentityResult, doClearIdentityFlag,
+  doAdmitFromWaitlist, doAdmitWaitlistBatch, waitlistCapacity, admittedUserCount, autoAdmitFromWaitlist,
 };
