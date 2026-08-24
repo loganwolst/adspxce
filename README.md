@@ -23,6 +23,25 @@ package.json      Root scripts (build client, start server)
 
 ## Since the last build
 
+- **Fixed the "everything looks too small/spread out" issue**: a real bug,
+  found the actual cause rather than guessing — the ledger box had
+  `margin-top: auto`, which pushes it to the very bottom of its
+  container. Harmless when the container was a small fixed height, but
+  once it correctly filled the real screen height (previous fix), that
+  same rule stretched the gap dramatically on a tall monitor. Removed
+  the auto-margin and centered the hero content as one coherent block
+  instead — looks consistent regardless of actual screen size now,
+  rather than only looking right by accident at a specific zoom level.
+- **Shooting stars rebuilt to be genuinely random**, not a few fixed
+  paths repeating on a timer: real position, direction (all 360°, not
+  just two preset diagonals — verified the transform math directly
+  rather than assuming), distance, and timing are freshly randomized
+  every single time one appears, so there's genuinely no way to predict
+  where or when the next one shows up. Bigger, brighter, and travels
+  further across the screen too. Still respects reduced-motion — for
+  that preference, none get scheduled at all rather than just being
+  hidden.
+
 - **Fixed the gap at the bottom on tall screens**: the layout only ever
   guaranteed a *minimum* height (a fixed 640px), never told to actually
   fill the real screen — genuinely different bug from the earlier width

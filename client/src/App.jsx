@@ -295,6 +295,55 @@ function LedgerTicker({ txns }) {
   );
 }
 
+function ShootingStars() {
+  const [stars, setStars] = useState([]);
+  const idRef = useRef(0);
+
+  useEffect(() => {
+    const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduceMotion) return; // don't even schedule anything for this preference
+
+    let timeoutId;
+    function scheduleNext() {
+      const delay = 3500 + Math.random() * 6000; // roughly every 3.5-9.5s, genuinely irregular
+      timeoutId = setTimeout(() => {
+        const id = idRef.current++;
+        const star = {
+          id,
+          top: Math.random() * 85, // vh% — anywhere across most of the screen
+          left: Math.random() * 100, // vw%
+          angle: Math.random() * 360, // truly any direction
+          distance: 420 + Math.random() * 520, // px — a real cross-screen streak, not a short flick
+          duration: 1.3 + Math.random() * 1.1, // seconds — long enough to actually catch
+        };
+        setStars((prev) => [...prev, star]);
+        setTimeout(() => setStars((prev) => prev.filter((s) => s.id !== id)), star.duration * 1000 + 300);
+        scheduleNext();
+      }, delay);
+    }
+    scheduleNext();
+    return () => clearTimeout(timeoutId);
+  }, []);
+
+  return (
+    <div className="shooting-stars" aria-hidden="true">
+      {stars.map((s) => (
+        <span
+          key={s.id}
+          className="shooting-star"
+          style={{
+            top: `${s.top}%`,
+            left: `${s.left}%`,
+            "--angle": `${s.angle}deg`,
+            "--distance": `${s.distance}px`,
+            "--duration": `${s.duration}s`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 function AuthScreen({ db, onLogin, onRegister }) {
   const [mode, setMode] = useState("login");
   const [role, setRole] = useState("user");
@@ -2222,11 +2271,7 @@ export default function App() {
   return (
     <div className="root">
       <GlobalStyle />
-      <div className="shooting-stars" aria-hidden="true">
-        <span className="shooting-star s1" />
-        <span className="shooting-star s2" />
-        <span className="shooting-star s3" />
-      </div>
+      <ShootingStars />
       {currentUser ? (
         <Shell user={currentUser} db={db} run={run} pushToast={pushToast} onLogout={handleLogout} />
       ) : (
@@ -2299,7 +2344,7 @@ function GlobalStyle() {
           radial-gradient(900px 480px at 105% -10%, rgba(82,227,194,0.14), transparent 60%),
           radial-gradient(700px 420px at -10% 105%, rgba(232,196,104,0.08), transparent 60%),
           linear-gradient(180deg, #05060F, #090B1E 60%, #060811);
-        color: #EFF4F2; padding: 44px 40px; display: flex; flex-direction: column; gap: 16px;
+        color: #EFF4F2; padding: 44px 40px; display: flex; flex-direction: column; justify-content: center; gap: 16px;
       }
       .auth-hero::before {
         content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: 0.7;
@@ -2321,24 +2366,21 @@ function GlobalStyle() {
       .auth-hero > * { position: relative; z-index: 1; }
       @keyframes twinkle { 0%, 100% { opacity: 0.28; } 28% { opacity: 1; } 52% { opacity: 0.45; } 78% { opacity: 0.95; } }
       .root > .shooting-stars { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
-      .shooting-star { position: absolute; width: 2px; height: 2px; background: #fff; border-radius: 50%; box-shadow: 0 0 6px 1px rgba(255,255,255,0.85); opacity: 0; }
-      .shooting-star::before { content: ''; position: absolute; top: 50%; right: 0; width: 90px; height: 1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.85)); transform: translateY(-50%); }
-      .shooting-star.s1 { top: 10%; left: 8%; animation: shoot-a 12s linear infinite; animation-delay: 3s; }
-      .shooting-star.s2 { top: 55%; left: 60%; animation: shoot-b 15s linear infinite; animation-delay: 8s; }
-      .shooting-star.s3 { top: 30%; left: 35%; animation: shoot-a 17s linear infinite; animation-delay: 13s; }
-      @keyframes shoot-a {
-        0%, 96% { opacity: 0; transform: translate(0, 0) rotate(-32deg); }
-        97% { opacity: 1; }
-        99% { opacity: 1; transform: translate(240px, 150px) rotate(-32deg); }
-        100% { opacity: 0; transform: translate(260px, 165px) rotate(-32deg); }
+      .shooting-star {
+        position: absolute; width: 3px; height: 3px; background: #fff; border-radius: 50%;
+        box-shadow: 0 0 12px 2px rgba(255,255,255,0.9), 0 0 26px 7px rgba(130,227,194,0.3);
+        transform: rotate(var(--angle)) translateX(0); animation: shoot-random var(--duration) ease-out forwards;
       }
-      @keyframes shoot-b {
-        0%, 93% { opacity: 0; transform: translate(0, 0) rotate(-20deg); }
-        94% { opacity: 1; }
-        96% { opacity: 1; transform: translate(-200px, 90px) rotate(-20deg); }
-        100% { opacity: 0; transform: translate(-220px, 100px) rotate(-20deg); }
+      .shooting-star::before {
+        content: ''; position: absolute; top: 50%; right: 0; width: 160px; height: 2px;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.9)); transform: translateY(-50%);
       }
-      @media (prefers-reduced-motion: reduce) { .shooting-star { display: none; } }
+      @keyframes shoot-random {
+        0% { opacity: 0; transform: rotate(var(--angle)) translateX(0); }
+        8% { opacity: 1; }
+        88% { opacity: 1; }
+        100% { opacity: 0; transform: rotate(var(--angle)) translateX(var(--distance)); }
+      }
       .brand-mark { font-family: 'Space Grotesk', sans-serif; font-weight: 700; letter-spacing: 0; font-size: 19px; position: relative; z-index: 1; }
       .brand-mark.small { padding: 22px 22px 10px; font-size: 17px; color: var(--ink); }
       .hero-watermark { position: absolute; top: -60px; right: -20px; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 420px; line-height: 1; color: rgba(82,227,194,0.05); user-select: none; pointer-events: none; z-index: 0; }
@@ -2347,7 +2389,7 @@ function GlobalStyle() {
       .auth-hero p { position: relative; z-index: 1; color: #A9B3AF; max-width: 420px; font-size: 14px; }
       .auth-hero-facts { display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: #DCEAE5; }
       .auth-hero-facts div { display: flex; align-items: center; gap: 8px; }
-      .ticker { margin-top: auto; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 14px 16px; }
+      .ticker { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 14px 16px; }
       .ticker-head { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: #8FA69F; margin-bottom: 8px; }
       .ticker-empty { font-size: 12px; color: #8FA69F; }
       .ticker-viewport { max-height: 168px; overflow: hidden; position: relative; -webkit-mask-image: linear-gradient(180deg, transparent, #000 12%, #000 88%, transparent); mask-image: linear-gradient(180deg, transparent, #000 12%, #000 88%, transparent); }
