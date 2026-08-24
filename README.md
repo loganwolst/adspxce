@@ -23,6 +23,20 @@ package.json      Root scripts (build client, start server)
 
 ## Since the last build
 
+- **Fixed having to scroll the whole page just to reach "Log out"**: the
+  sidebar nav had `flex: 1`, pushing Log out to the very bottom of the
+  sidebar's height — reasonable on its own, but combined with a page
+  that's only as tall as its actual content, "the bottom of the
+  sidebar" meant "the bottom of the whole page," so a short page (like
+  Admin Overview) required scrolling to reach it. Real fix, not just a
+  workaround: the sidebar now pins itself to the visible screen
+  (`position: sticky`, full viewport height, scrolls independently if
+  its own contents ever exceed that) — Log out stays reachable without
+  scrolling on every page, whether that page's content is short or long
+  enough to need scrolling itself. Also checked the mobile layout
+  specifically, since it turns the sidebar into a horizontal bar instead
+  — made sure it doesn't inherit the desktop-only height/pinning.
+
 - **Found the real cause of the top/bottom gap — it wasn't the zoom fix
   after all**: both the hero panel and the login panel had
   `justify-content: center`, vertically centering their content within

@@ -2440,10 +2440,11 @@ function GlobalStyle() {
 
       /* ---------- Shell ---------- */
       .app-shell { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; width: 100%; }
-      @media (max-width: 760px) { .app-shell { grid-template-columns: 1fr; } .sidebar { flex-direction: row; overflow-x: auto; } .sidebar nav { flex-direction: row; } }
+      @media (max-width: 760px) { .app-shell { grid-template-columns: 1fr; } .sidebar { flex-direction: row; overflow-x: auto; overflow-y: visible; position: static; height: auto; } .sidebar nav { flex-direction: row; } }
       .sidebar {
         background: radial-gradient(320px 200px at 0% 0%, rgba(82,227,194,0.05), transparent 60%), var(--surface);
         border-right: 1px solid var(--line); display: flex; flex-direction: column; padding-bottom: 16px;
+        position: sticky; top: 0; height: 100vh; overflow-y: auto;
       }
       .sidebar nav { display: flex; flex-direction: column; gap: 2px; padding: 6px 12px; flex: 1; }
       .nav-btn { display: flex; align-items: center; gap: 10px; border: none; background: transparent; padding: 10px 12px; border-radius: 8px; font-size: 13px; font-weight: 500; color: var(--ink-soft); text-align: left; }
