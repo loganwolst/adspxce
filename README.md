@@ -23,6 +23,22 @@ package.json      Root scripts (build client, start server)
 
 ## Since the last build
 
+- **Scaled the whole app up (`zoom: 1.4`)** to match the size you
+  preferred — you'd found it looked right at 150% browser zoom, so
+  rather than manually rewriting hundreds of individual font-size and
+  spacing values (error-prone, hard to keep consistent), baked that
+  scale in site-wide as the new default at ordinary 100% zoom. If it
+  needs nudging up or down, it's one number to tune, not a rewrite.
+- **Stars now genuinely twinkle independently** rather than all fading
+  in and out together — previously it was one shared animation across
+  every dot, so however many stars there were, they all pulsed as a
+  single unit. Split into 3 layers with staggered timing so different
+  stars are visibly out of phase with each other. Also removed a
+  redundant second starfield that lived specifically on the login
+  panel — the main one already covers that whole area now that it's
+  fixed to the full viewport, so having two overlapping layers wasn't
+  adding anything, just complexity.
+
 - **Fixed the "everything looks too small/spread out" issue**: a real bug,
   found the actual cause rather than guessing — the ledger box had
   `margin-top: auto`, which pushes it to the very bottom of its

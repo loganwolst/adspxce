@@ -2261,6 +2261,9 @@ export default function App() {
     return (
       <div className="loading-screen">
         <GlobalStyle />
+        <span className="star-layer layer-1" aria-hidden="true" />
+        <span className="star-layer layer-2" aria-hidden="true" />
+        <span className="star-layer layer-3" aria-hidden="true" />
         <div className="loading-mark">adspXce</div>
       </div>
     );
@@ -2271,6 +2274,9 @@ export default function App() {
   return (
     <div className="root">
       <GlobalStyle />
+      <span className="star-layer layer-1" aria-hidden="true" />
+      <span className="star-layer layer-2" aria-hidden="true" />
+      <span className="star-layer layer-3" aria-hidden="true" />
       <ShootingStars />
       {currentUser ? (
         <Shell user={currentUser} db={db} run={run} pushToast={pushToast} onLogout={handleLogout} />
@@ -2297,6 +2303,7 @@ function GlobalStyle() {
       }
       * { box-sizing: border-box; }
       html, body { margin: 0; padding: 0; height: 100%; background: var(--bg); }
+      body { zoom: 1.4; }
       #root { min-height: 100%; width: 100%; }
       .root, .loading-screen { position: relative; font-family: 'Inter', sans-serif; color: var(--ink); background: var(--bg); min-height: 100%; width: 100%; overflow-x: hidden; }
       .root::before, .loading-screen::before {
@@ -2306,26 +2313,38 @@ function GlobalStyle() {
           radial-gradient(900px 620px at 96% 8%, rgba(232,196,104,0.05), transparent 55%),
           radial-gradient(1000px 700px at 40% 115%, rgba(82,227,194,0.05), transparent 55%);
       }
-      .root::after, .loading-screen::after {
-        content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: 0.55;
+      .root > .star-layer, .loading-screen > .star-layer {
+        position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: 0.55;
         animation: twinkle 9s ease-in-out infinite;
+      }
+      .star-layer.layer-1 {
+        animation-delay: -1s;
         background-image:
           radial-gradient(1.5px 1.5px at 5% 12%, #fff, transparent),
-          radial-gradient(1px 1px at 14% 48%, #fff, transparent),
-          radial-gradient(1px 1px at 22% 78%, #fff, transparent),
           radial-gradient(2px 2px at 33% 22%, #fff, transparent),
-          radial-gradient(1px 1px at 41% 60%, #fff, transparent),
-          radial-gradient(1.5px 1.5px at 50% 90%, #fff, transparent),
           radial-gradient(1px 1px at 58% 35%, #fff, transparent),
-          radial-gradient(2px 2px at 66% 70%, #fff, transparent),
-          radial-gradient(1px 1px at 74% 15%, #fff, transparent),
           radial-gradient(1.5px 1.5px at 81% 52%, #fff, transparent),
-          radial-gradient(1px 1px at 89% 85%, #fff, transparent),
-          radial-gradient(1px 1px at 95% 30%, #fff, transparent),
-          radial-gradient(1.5px 1.5px at 3% 65%, #fff, transparent),
           radial-gradient(1px 1px at 62% 5%, #fff, transparent);
       }
+      .star-layer.layer-2 {
+        animation-delay: -4s;
+        background-image:
+          radial-gradient(1px 1px at 14% 48%, #fff, transparent),
+          radial-gradient(1px 1px at 41% 60%, #fff, transparent),
+          radial-gradient(2px 2px at 66% 70%, #fff, transparent),
+          radial-gradient(1px 1px at 89% 85%, #fff, transparent),
+          radial-gradient(1.5px 1.5px at 3% 65%, #fff, transparent);
+      }
+      .star-layer.layer-3 {
+        animation-delay: -7s;
+        background-image:
+          radial-gradient(1px 1px at 22% 78%, #fff, transparent),
+          radial-gradient(1.5px 1.5px at 50% 90%, #fff, transparent),
+          radial-gradient(1px 1px at 74% 15%, #fff, transparent),
+          radial-gradient(1px 1px at 95% 30%, #fff, transparent);
+      }
       .root > *, .loading-screen > * { position: relative; z-index: 1; }
+      .root > .star-layer, .loading-screen > .star-layer { z-index: 0; position: fixed; }
       .mono { font-family: 'IBM Plex Mono', monospace; }
       h1, h2 { font-family: 'Space Grotesk', sans-serif; margin: 0; }
       p { color: var(--ink-soft); line-height: 1.5; }
@@ -2345,23 +2364,6 @@ function GlobalStyle() {
           radial-gradient(700px 420px at -10% 105%, rgba(232,196,104,0.08), transparent 60%),
           linear-gradient(180deg, #05060F, #090B1E 60%, #060811);
         color: #EFF4F2; padding: 44px 40px; display: flex; flex-direction: column; justify-content: center; gap: 16px;
-      }
-      .auth-hero::before {
-        content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: 0.7;
-        animation: twinkle 7s ease-in-out infinite;
-        background-image:
-          radial-gradient(1.5px 1.5px at 8% 18%, #fff, transparent),
-          radial-gradient(1px 1px at 18% 62%, #fff, transparent),
-          radial-gradient(2px 2px at 30% 12%, #fff, transparent),
-          radial-gradient(1px 1px at 42% 78%, #fff, transparent),
-          radial-gradient(1.5px 1.5px at 55% 32%, #fff, transparent),
-          radial-gradient(1px 1px at 65% 58%, #fff, transparent),
-          radial-gradient(2px 2px at 74% 22%, #fff, transparent),
-          radial-gradient(1px 1px at 82% 68%, #fff, transparent),
-          radial-gradient(1.5px 1.5px at 92% 15%, #fff, transparent),
-          radial-gradient(1px 1px at 12% 88%, #fff, transparent),
-          radial-gradient(1px 1px at 48% 92%, #fff, transparent),
-          radial-gradient(1.5px 1.5px at 88% 85%, #fff, transparent);
       }
       .auth-hero > * { position: relative; z-index: 1; }
       @keyframes twinkle { 0%, 100% { opacity: 0.28; } 28% { opacity: 1; } 52% { opacity: 0.45; } 78% { opacity: 0.95; } }
