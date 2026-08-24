@@ -675,6 +675,9 @@ function UserMembership({ user, db, run, pushToast }) {
   // maximum CPV, not the average, so this number can never be exceeded by
   // a real user's ad-view earnings.
   const maxCpv = cfg.cpvMax;
+  const activeCampaigns = Object.values(db.campaigns).filter((c) => c.status === "active").length;
+  const campaignsRequired = cfg.minCampaignsForUpgrade ?? 5;
+  const supplyReady = activeCampaigns >= campaignsRequired;
 
   return (
     <div>
@@ -683,6 +686,7 @@ function UserMembership({ user, db, run, pushToast }) {
         {tiers.map((t) => {
           const isCurrent = user.membership === t;
           const plan = cfg.membership[t];
+          const locked = plan.price > 0 && !supplyReady;
           const monthlyCap = Math.round(plan.views * maxCpv * (plan.sharePct / 100) * 30);
           const yearlyPrice = round2(plan.price * 10);
           const displayPrice = plan.price === 0 ? "Free" : billing === "monthly" ? `${money(plan.price)}` : `${money(yearlyPrice / 12)}`;
@@ -699,12 +703,17 @@ function UserMembership({ user, db, run, pushToast }) {
               <div className="plan-price">{displayPrice}</div>
               {plan.price > 0 && <div className="plan-price-sub">Every month{billing === "yearly" ? `, billed ${money(yearlyPrice)} yearly` : ""}</div>}
               <div className="plan-views">Watch up to {plan.views} videos a day</div>
+              {locked && (
+                <div className="muted" style={{ fontSize: 11.5, marginBottom: 8 }}>
+                  Unlocks once there are enough active campaigns to make the extra views worthwhile — {activeCampaigns}/{campaignsRequired} so far.
+                </div>
+              )}
               <button
                 className={isCurrent ? "btn btn-ghost btn-block" : "btn btn-primary btn-block"}
-                disabled={isCurrent}
+                disabled={isCurrent || locked}
                 onClick={async () => { const r = await run('UPGRADE_MEMBERSHIP', { tier: t }); pushToast(r.message || r.error, r.error ? "error" : "success"); }}
               >
-                {isCurrent ? "Active" : "Sign up"}
+                {isCurrent ? "Active" : locked ? "Not yet available" : "Sign up"}
               </button>
               <div className="plan-divider" />
               <ul className="plan-bullets">
@@ -1843,6 +1852,7 @@ function AdminConfig({ db, run, pushToast }) {
     advertiserSubscriptionPrice: db.config.advertiserSubscriptionPrice, withdrawalMinimum: db.config.withdrawalMinimum,
     trustAutoApproveThreshold: db.config.trustAutoApproveThreshold ?? 80,
     loyaltyBonusDaysRequired: db.config.loyaltyBonusDaysRequired ?? 4, loyaltyBonusAmount: db.config.loyaltyBonusAmount ?? 0.5,
+    minCampaignsForUpgrade: db.config.minCampaignsForUpgrade ?? 5,
     basicViews: db.config.membership.basic.views, basicRate: db.config.membership.basic.sharePct,
     plusViews: db.config.membership.plus.views, plusPrice: db.config.membership.plus.price, plusRate: db.config.membership.plus.sharePct,
     premiumViews: db.config.membership.premium.views, premiumPrice: db.config.membership.premium.price, premiumRate: db.config.membership.premium.sharePct,
@@ -1856,6 +1866,7 @@ function AdminConfig({ db, run, pushToast }) {
       advertiserSubscriptionPrice: parseFloat(form.advertiserSubscriptionPrice), withdrawalMinimum: parseFloat(form.withdrawalMinimum),
       trustAutoApproveThreshold: parseFloat(form.trustAutoApproveThreshold),
       loyaltyBonusDaysRequired: parseInt(form.loyaltyBonusDaysRequired, 10), loyaltyBonusAmount: parseFloat(form.loyaltyBonusAmount),
+      minCampaignsForUpgrade: parseInt(form.minCampaignsForUpgrade, 10),
       membership: {
         basic: { views: parseInt(form.basicViews, 10), price: 0, sharePct: parseFloat(form.basicRate) },
         plus: { views: parseInt(form.plusViews, 10), price: parseFloat(form.plusPrice), sharePct: parseFloat(form.plusRate) },
@@ -1900,6 +1911,10 @@ function AdminConfig({ db, run, pushToast }) {
         <div className="form-row">
           <label>Days active required per week<input className="input" type="number" step="1" min="1" max="7" value={form.loyaltyBonusDaysRequired} onChange={set("loyaltyBonusDaysRequired")} /></label>
           <label>Bonus amount<input className="input" type="number" step="0.01" min="0" value={form.loyaltyBonusAmount} onChange={set("loyaltyBonusAmount")} /></label>
+        </div>
+        <div className="card-title" style={{ marginTop: 18 }}>Membership supply gate</div>
+        <div className="form-row">
+          <label>Min. active campaigns to unlock paid tiers<input className="input" type="number" step="1" min="0" value={form.minCampaignsForUpgrade} onChange={set("minCampaignsForUpgrade")} /></label>
         </div>
         <button className="btn btn-primary" type="submit" style={{ marginTop: 14 }}><Settings size={15} /> Save configuration</button>
       </form>

@@ -23,6 +23,18 @@ package.json      Root scripts (build client, start server)
 
 ## Since the last build
 
+- **Paid membership tiers now gate on real ad supply**: Upgraded/Gold stay
+  fully visible (pricing, benefits, everything) but can't actually be
+  purchased until there are enough active campaigns on the platform to
+  make the extra daily views genuinely worth paying for — configurable at
+  Admin → Configuration ("Min. active campaigns to unlock paid tiers",
+  defaults to 5). **Enforced server-side**, not just a disabled button —
+  the underlying action rejects the upgrade outright if the real count
+  isn't there, so this can't be bypassed by calling the API directly.
+  Downgrading back to the free tier is never blocked, for obvious reasons.
+  Same principle as the earlier figures audit: don't let someone pay for
+  something the platform can't actually deliver yet.
+
 - **Fixed a white background showing below the app on some pages**:
   `html`/`body` had no background colour set at all — only the app's own
   content did — so if a page's content was shorter than the browser

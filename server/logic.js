@@ -29,7 +29,7 @@ function seedDB() {
         premium: { views: 100, price: 25, sharePct: 70 },
       },
       advertiserSubscriptionPrice: 29, withdrawalMinimum: 25, trustAutoApproveThreshold: 80,
-      loyaltyBonusDaysRequired: 4, loyaltyBonusAmount: 0.50,
+      loyaltyBonusDaysRequired: 4, loyaltyBonusAmount: 0.50, minCampaignsForUpgrade: 5,
     },
     users: {
       [adminId]: { id: adminId, role: "admin", name: "Admin", email: "admin@adspxce.test", passwordHash: hash("admin"), createdAt: nowISO() },
@@ -284,6 +284,13 @@ function doUpgradeMembership(db, { userId, tier }) {
   const cfg = db.config;
   if (!cfg.membership[tier]) return { error: "Unknown membership tier." };
   if (user.membership === tier) return { error: "You're already on this plan." };
+  if (cfg.membership[tier].price > 0) {
+    const activeCampaigns = Object.values(db.campaigns).filter((c) => c.status === "active").length;
+    const required = cfg.minCampaignsForUpgrade ?? 5;
+    if (activeCampaigns < required) {
+      return { error: `This tier unlocks once there are enough active campaigns to make the extra views worthwhile — ${activeCampaigns}/${required} so far.` };
+    }
+  }
   user.membership = tier;
   db.transactions.unshift({ id: uid("txn"), type: "MEMBERSHIP_PURCHASE", status: "COMPLETED", timestamp: nowISO(), userId, amount: cfg.membership[tier].price, tier });
   return { message: `Upgraded to ${tier[0].toUpperCase() + tier.slice(1)}.` };
@@ -376,6 +383,9 @@ function doUpdateConfig(db, { patch }) {
   }
   if (patch.loyaltyBonusAmount !== undefined && patch.loyaltyBonusAmount < 0) {
     return { error: "Loyalty bonus amount can't be negative." };
+  }
+  if (patch.minCampaignsForUpgrade !== undefined && patch.minCampaignsForUpgrade < 0) {
+    return { error: "Minimum campaigns can't be negative." };
   }
   db.config = { ...db.config, ...patch, membership: patch.membership };
   return { message: "Platform configuration saved." };
