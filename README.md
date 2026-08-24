@@ -23,6 +23,18 @@ package.json      Root scripts (build client, start server)
 
 ## Since the last build
 
+- **Fixed the gap at the bottom on tall screens**: the layout only ever
+  guaranteed a *minimum* height (a fixed 640px), never told to actually
+  fill the real screen — genuinely different bug from the earlier width
+  ones, not a sign either of those fixes didn't work. Switched to a
+  viewport-relative height so it always fills the actual screen,
+  whatever size that is.
+- **Twinkle turned up, and added occasional shooting stars** — three of
+  them, staggered with different timings and paths so they don't all
+  fire at once and feel more like something you might genuinely catch
+  out of the corner of your eye than a scheduled effect. Both respect
+  "reduce motion" system settings.
+
 - **Fixed the login form sitting flush-left with dead space beside it on
   wide screens**: the previous width fix was actually correct — the layout
   really was filling the full window — but the right-hand panel (login

@@ -2222,6 +2222,11 @@ export default function App() {
   return (
     <div className="root">
       <GlobalStyle />
+      <div className="shooting-stars" aria-hidden="true">
+        <span className="shooting-star s1" />
+        <span className="shooting-star s2" />
+        <span className="shooting-star s3" />
+      </div>
       {currentUser ? (
         <Shell user={currentUser} db={db} run={run} pushToast={pushToast} onLogout={handleLogout} />
       ) : (
@@ -2286,7 +2291,7 @@ function GlobalStyle() {
       .loading-mark { font-family: 'Space Grotesk', sans-serif; font-weight: 700; letter-spacing: 0.08em; font-size: 15px; color: var(--ink-soft); }
 
       /* ---------- Auth ---------- */
-      .auth-shell { display: grid; grid-template-columns: 1.1fr 1fr; min-height: 640px; width: 100%; }
+      .auth-shell { display: grid; grid-template-columns: 1.1fr 1fr; min-height: 100vh; width: 100%; }
       @media (max-width: 860px) { .auth-shell { grid-template-columns: 1fr; } }
       .auth-hero {
         position: relative; overflow: hidden;
@@ -2314,7 +2319,26 @@ function GlobalStyle() {
           radial-gradient(1.5px 1.5px at 88% 85%, #fff, transparent);
       }
       .auth-hero > * { position: relative; z-index: 1; }
-      @keyframes twinkle { 0%, 100% { opacity: 0.4; } 28% { opacity: 0.9; } 52% { opacity: 0.55; } 78% { opacity: 0.85; } }
+      @keyframes twinkle { 0%, 100% { opacity: 0.28; } 28% { opacity: 1; } 52% { opacity: 0.45; } 78% { opacity: 0.95; } }
+      .root > .shooting-stars { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+      .shooting-star { position: absolute; width: 2px; height: 2px; background: #fff; border-radius: 50%; box-shadow: 0 0 6px 1px rgba(255,255,255,0.85); opacity: 0; }
+      .shooting-star::before { content: ''; position: absolute; top: 50%; right: 0; width: 90px; height: 1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.85)); transform: translateY(-50%); }
+      .shooting-star.s1 { top: 10%; left: 8%; animation: shoot-a 12s linear infinite; animation-delay: 3s; }
+      .shooting-star.s2 { top: 55%; left: 60%; animation: shoot-b 15s linear infinite; animation-delay: 8s; }
+      .shooting-star.s3 { top: 30%; left: 35%; animation: shoot-a 17s linear infinite; animation-delay: 13s; }
+      @keyframes shoot-a {
+        0%, 96% { opacity: 0; transform: translate(0, 0) rotate(-32deg); }
+        97% { opacity: 1; }
+        99% { opacity: 1; transform: translate(240px, 150px) rotate(-32deg); }
+        100% { opacity: 0; transform: translate(260px, 165px) rotate(-32deg); }
+      }
+      @keyframes shoot-b {
+        0%, 93% { opacity: 0; transform: translate(0, 0) rotate(-20deg); }
+        94% { opacity: 1; }
+        96% { opacity: 1; transform: translate(-200px, 90px) rotate(-20deg); }
+        100% { opacity: 0; transform: translate(-220px, 100px) rotate(-20deg); }
+      }
+      @media (prefers-reduced-motion: reduce) { .shooting-star { display: none; } }
       .brand-mark { font-family: 'Space Grotesk', sans-serif; font-weight: 700; letter-spacing: 0; font-size: 19px; position: relative; z-index: 1; }
       .brand-mark.small { padding: 22px 22px 10px; font-size: 17px; color: var(--ink); }
       .hero-watermark { position: absolute; top: -60px; right: -20px; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 420px; line-height: 1; color: rgba(82,227,194,0.05); user-select: none; pointer-events: none; z-index: 0; }
@@ -2371,7 +2395,7 @@ function GlobalStyle() {
       .btn-mini:hover { background: var(--bg); }
 
       /* ---------- Shell ---------- */
-      .app-shell { display: grid; grid-template-columns: 220px 1fr; min-height: 640px; width: 100%; }
+      .app-shell { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; width: 100%; }
       @media (max-width: 760px) { .app-shell { grid-template-columns: 1fr; } .sidebar { flex-direction: row; overflow-x: auto; } .sidebar nav { flex-direction: row; } }
       .sidebar {
         background: radial-gradient(320px 200px at 0% 0%, rgba(82,227,194,0.05), transparent 60%), var(--surface);
