@@ -2303,7 +2303,7 @@ function GlobalStyle() {
       }
       * { box-sizing: border-box; }
       html, body { margin: 0; padding: 0; height: 100%; background: var(--bg); }
-      body { zoom: 1.4; }
+      html { zoom: 1.4; }
       #root { min-height: 100%; width: 100%; }
       .root, .loading-screen { position: relative; font-family: 'Inter', sans-serif; color: var(--ink); background: var(--bg); min-height: 100%; width: 100%; overflow-x: hidden; }
       .root::before, .loading-screen::before {

@@ -23,6 +23,14 @@ package.json      Root scripts (build client, start server)
 
 ## Since the last build
 
+- **Fixed a gap top and bottom caused by the zoom fix itself**: applying
+  `zoom` to `body` created a real mismatch — `body`'s own layout box
+  stayed sized at the original (unzoomed) height as far as its parent
+  (`html`) was concerned, while it rendered 1.4× bigger visually, so the
+  page ended up taller than the viewport thought it was. Moved the zoom
+  to `html` instead — the outermost level — which avoids that
+  parent/child boundary mismatch entirely.
+
 - **Scaled the whole app up (`zoom: 1.4`)** to match the size you
   preferred — you'd found it looked right at 150% browser zoom, so
   rather than manually rewriting hundreds of individual font-size and
