@@ -23,6 +23,29 @@ package.json      Root scripts (build client, start server)
 
 ## Since the last build
 
+- **Identity verification is now mandatory to watch ads at all**, not
+  optional — a real, defensible advertiser selling point (genuinely
+  verified, real people, not just numbers), enforced server-side, not
+  just a UI hint. Tested directly: blocked while unverified, blocked
+  while verification is only "processing" (not yet complete), blocked
+  on a failed verification, and correctly allowed the moment
+  verification genuinely succeeds. The View Ads page now shows a clear
+  upfront gate with a direct "Verify my identity" button rather than
+  letting someone discover the requirement by clicking around and
+  hitting errors.
+  - **Worth knowing plainly**: this affects every existing tester
+    immediately on deploy, including friends already using the app —
+    none of them will have completed identity verification yet, since
+    it didn't exist as a requirement until now. Worth giving them a
+    heads-up before this goes live so it doesn't look like the app
+    broke.
+  - Also worth having ready for the eventual legal conversation: the
+    specific justification for requiring ID just to watch a video is
+    advertiser trust as a genuine product differentiator — a real,
+    legitimate reason, but the kind of thing worth confirming
+    proportionate under UK GDPR's data minimisation principle when that
+    review happens.
+
 - **Referral bonuses halved, and now only pay on genuine identity
   verification, not on watching one ad**: closes a real farming
   loophole — previously, someone could register fake accounts, watch a

@@ -97,6 +97,7 @@ function doCompleteView(db, { userId, campaignId, attentionPassed, interruptions
   const campaign = db.campaigns[campaignId];
   if (!user || !campaign) return { error: "This advertisement is no longer available." };
   if (user.waitlisted) return { error: "You're still on the waitlist — hang tight, we're letting people in as advertiser supply grows." };
+  if (user.identityVerificationStatus !== "verified") return { error: "Verify your identity first — every view on adspXce needs to be a genuine, verified person." };
   if (campaign.status !== "active") return { error: "This campaign is no longer active." };
   const cfg = db.config;
   const limit = cfg.membership[user.membership].views;
