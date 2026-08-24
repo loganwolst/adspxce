@@ -2355,7 +2355,7 @@ function GlobalStyle() {
       .loading-mark { font-family: 'Space Grotesk', sans-serif; font-weight: 700; letter-spacing: 0.08em; font-size: 15px; color: var(--ink-soft); }
 
       /* ---------- Auth ---------- */
-      .auth-shell { display: grid; grid-template-columns: 1.1fr 1fr; min-height: 100vh; width: 100%; }
+      .auth-shell { display: grid; grid-template-columns: 1.1fr 1fr; width: 100%; }
       @media (max-width: 860px) { .auth-shell { grid-template-columns: 1fr; } }
       .auth-hero {
         position: relative; overflow: hidden;
@@ -2439,7 +2439,7 @@ function GlobalStyle() {
       .btn-mini:hover { background: var(--bg); }
 
       /* ---------- Shell ---------- */
-      .app-shell { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; width: 100%; }
+      .app-shell { display: grid; grid-template-columns: 220px 1fr; width: 100%; }
       @media (max-width: 760px) { .app-shell { grid-template-columns: 1fr; } .sidebar { flex-direction: row; overflow-x: auto; overflow-y: visible; position: static; height: auto; } .sidebar nav { flex-direction: row; } }
       .sidebar {
         background: radial-gradient(320px 200px at 0% 0%, rgba(82,227,194,0.05), transparent 60%), var(--surface);
@@ -2451,7 +2451,7 @@ function GlobalStyle() {
       .nav-btn:hover { background: var(--bg); }
       .nav-btn.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
       .nav-btn.logout { margin: 0 12px; color: var(--danger); }
-      .main { min-width: 0; }
+      .main { align-self: start; min-width: 0; }
       .topbar {
         display: flex; align-items: center; justify-content: space-between; padding: 18px 32px; border-bottom: 1px solid var(--line);
         background: radial-gradient(420px 160px at 100% 0%, rgba(232,196,104,0.04), transparent 65%), var(--surface);

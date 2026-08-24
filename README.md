@@ -23,6 +23,18 @@ package.json      Root scripts (build client, start server)
 
 ## Since the last build
 
+- **Found the actual root cause of the persistent bottom gap**: removing
+  the centering fixed the top gap, but the container was still forced
+  to `min-height: 100vh` — always at least a full screen tall, even
+  when content is much shorter — so the leftover space just moved to
+  the bottom instead of disappearing. Removed that forced minimum
+  entirely on both the auth screen and the logged-in app shell, so they
+  size to their actual content instead of always padding out to fill
+  the screen. Also had to make sure the main content pane doesn't get
+  dragged along by the sidebar's own explicit full-height sizing (a
+  side effect of the earlier sticky-sidebar fix) — it now sizes to its
+  own content independently, same as it should.
+
 - **Fixed having to scroll the whole page just to reach "Log out"**: the
   sidebar nav had `flex: 1`, pushing Log out to the very bottom of the
   sidebar's height — reasonable on its own, but combined with a page
