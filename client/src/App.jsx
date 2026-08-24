@@ -361,7 +361,7 @@ function WaitlistScreen({ user, db, onLogout }) {
         </p>
         <div className="auth-hero-facts">
           <div><Megaphone size={16} /> {activeCampaigns} active campaign{activeCampaigns === 1 ? "" : "s"} right now</div>
-          <div><Clock size={16} /> {waitlistCount} people waiting alongside you</div>
+          <div><Clock size={16} /> {waitlistCount} {waitlistCount === 1 ? "person" : "people"} waiting alongside you</div>
         </div>
         <p className="muted" style={{ fontSize: 12.5 }}>
           Just log in again any time to check whether you've moved up.
@@ -393,7 +393,7 @@ function AuthScreen({ db, onLogin, onRegister }) {
         <div className="auth-hero-facts">
           <div><TrendingUp size={16} /> CPV from {money(db.config.cpvMin)}–{money(db.config.cpvMax)}</div>
           <div><ShieldCheck size={16} /> Higher tiers earn a better rate on every view</div>
-          {db.waitlistCount > 0 && <div><Clock size={16} /> {db.waitlistCount} people already waiting to join</div>}
+          {db.waitlistCount > 0 && <div><Clock size={16} /> {db.waitlistCount} {db.waitlistCount === 1 ? "person" : "people"} already waiting to join</div>}
         </div>
         <LedgerTicker txns={db.publicLedger || []} />
       </div>
@@ -1366,7 +1366,7 @@ function AdvertiserDashboard({ adv, db }) {
       </div>
       {db.waitlistCount > 0 && (
         <div className="inline-warning" style={{ background: "var(--accent-soft)", color: "var(--accent)", marginBottom: 16 }}>
-          <Users size={14} /> <strong>{db.waitlistCount} people</strong> are waiting to join and start watching ads — we're deliberately
+          <Users size={14} /> <strong>{db.waitlistCount} {db.waitlistCount === 1 ? "person" : "people"}</strong> {db.waitlistCount === 1 ? "is" : "are"} waiting to join and start watching ads — we're deliberately
           admitting them as advertiser supply grows, so more active campaigns from you means more real people let in sooner.
         </div>
       )}

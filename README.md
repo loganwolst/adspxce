@@ -23,6 +23,11 @@ package.json      Root scripts (build client, start server)
 
 ## Since the last build
 
+- **Fixed "1 people" grammar** — caught from your screenshot when the
+  waitlist genuinely had exactly one person on it. Same issue existed
+  in three places (the waitlist screen, the public login message, and
+  the advertiser dashboard note) — fixed all three consistently.
+
 - **Filled the space the demo box left with something genuinely useful**:
   a "How it works" mini-explainer (watch → verify → get paid) plus a
   real trust signal (real payments via Stripe) — everything stated is
