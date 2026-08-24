@@ -2338,8 +2338,17 @@ const NAV = {
 };
 
 function Shell({ user, db, run, pushToast, onLogout }) {
-  const [page, setPage] = useState("dashboard");
+  const [page, setPage] = useState(() => {
+    const fromUrl = new URLSearchParams(window.location.search).get("page");
+    return fromUrl && NAV[user.role].some((n) => n.key === fromUrl) ? fromUrl : "dashboard";
+  });
   const nav = NAV[user.role];
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    params.set("page", page);
+    window.history.replaceState({}, "", `${window.location.pathname}?${params.toString()}`);
+  }, [page]);
 
   let content;
   if (user.role === "user") {

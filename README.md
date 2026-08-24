@@ -23,6 +23,13 @@ package.json      Root scripts (build client, start server)
 
 ## Since the last build
 
+- **Refreshing now keeps you on whatever tab you're actually on**,
+  instead of always dropping back to Dashboard — the current page is
+  now reflected in the URL and read back on load. Verified the URL
+  logic directly, including that it correctly coexists with the
+  identity/payout return parameters from the Stripe flows without
+  interfering with either.
+
 - **Fixed Profile page kicking you back to Dashboard every time** — a
   real bug, not a misunderstanding. The `?identity=return` URL parameter
   (left behind after returning from Stripe's verification flow) was
