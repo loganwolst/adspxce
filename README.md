@@ -23,6 +23,17 @@ package.json      Root scripts (build client, start server)
 
 ## Since the last build
 
+- **Fixed Profile page kicking you back to Dashboard every time** — a
+  real bug, not a misunderstanding. The `?identity=return` URL parameter
+  (left behind after returning from Stripe's verification flow) was
+  never being cleared, so it kept re-triggering the same status check
+  and page reload every single time Profile loaded, for as long as
+  verification status wasn't "verified." Since a fresh reload always
+  defaults back to Dashboard, this looked exactly like being kicked off
+  the page. Found the identical bug in the payout status check too (same
+  pattern, `?payout=return`) — fixed both the same way: clear the URL
+  parameter the moment it's read, so it can only ever fire once.
+
 - **Identity verification is now mandatory to watch ads at all**, not
   optional — a real, defensible advertiser selling point (genuinely
   verified, real people, not just numbers), enforced server-side, not

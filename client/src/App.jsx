@@ -923,8 +923,9 @@ function UserWithdraw({ user, db, run, pushToast }) {
   };
 
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("payout") === "return" && !user.stripeConnectOnboarded) {
-      checkPayoutStatus();
+    if (new URLSearchParams(window.location.search).get("payout") === "return") {
+      window.history.replaceState({}, "", window.location.pathname);
+      if (!user.stripeConnectOnboarded) checkPayoutStatus();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -1144,8 +1145,12 @@ function UserProfile({ user, db, run, pushToast }) {
   };
 
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("identity") === "return" && user.identityVerificationStatus !== "verified") {
-      checkIdentityStatus();
+    if (new URLSearchParams(window.location.search).get("identity") === "return") {
+      // Clear the param immediately — otherwise it stays in the URL forever
+      // and re-triggers this same check (and reload) every single time the
+      // page loads again, which looks exactly like being kicked off the page.
+      window.history.replaceState({}, "", window.location.pathname);
+      if (user.identityVerificationStatus !== "verified") checkIdentityStatus();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
