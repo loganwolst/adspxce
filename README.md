@@ -23,6 +23,13 @@ package.json      Root scripts (build client, start server)
 
 ## Since the last build
 
+- **Fixed the login form sitting flush-left with dead space beside it on
+  wide screens**: the previous width fix was actually correct — the layout
+  really was filling the full window — but the right-hand panel (login
+  form) had no centering at all, so on a wide screen its content just
+  sat against the left edge of its own column with a large unstyled gap
+  to the right. Now centers properly regardless of window width.
+
 - **Fixed the app not filling the browser window on some setups**: the
   top-level layout containers (`#root`, `.root`, `.auth-shell`,
   `.app-shell`) had no explicit width set — normally that's fine since

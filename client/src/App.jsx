@@ -2336,11 +2336,11 @@ function GlobalStyle() {
       .ticker-type { color: #C7D6D1; text-transform: capitalize; }
       .ticker-amt { color: #52E3C2; }
 
-      .auth-panel { padding: 44px 44px; display: flex; flex-direction: column; }
+      .auth-panel { padding: 44px 44px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
       .auth-tabs { display: flex; gap: 4px; background: var(--line); border-radius: 10px; padding: 4px; margin-bottom: 26px; width: fit-content; }
       .tab { border: none; background: transparent; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--ink-soft); }
       .tab.active { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(16,21,27,0.08); }
-      .auth-form { display: flex; flex-direction: column; gap: 14px; max-width: 380px; }
+      .auth-form { display: flex; flex-direction: column; gap: 14px; width: 100%; max-width: 380px; }
       .auth-form label { display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--ink-soft); }
       .role-toggle { display: flex; gap: 8px; margin-bottom: 4px; }
       .role-btn { flex: 1; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 9px 10px; font-size: 12.5px; font-weight: 600; color: var(--ink-soft); display: flex; align-items: center; justify-content: center; gap: 6px; }
