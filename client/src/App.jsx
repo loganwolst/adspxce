@@ -1005,7 +1005,7 @@ function UserReferrals({ user, db }) {
 
   return (
     <div>
-      <div className="page-head"><h2>Referrals</h2><p>Invite a friend — you both get a bonus once they watch their first ad.</p></div>
+      <div className="page-head"><h2>Referrals</h2><p>Invite a friend — you both get a bonus once they verify their identity.</p></div>
       <div className="stat-grid">
         <StatCard label="Friends referred" value={referrerBonuses.length} />
         <StatCard label="Earned from referrals" value={money(totalEarned)} tone="#52E3C2" />
@@ -1038,7 +1038,7 @@ function UserReferrals({ user, db }) {
       {user.referredBy && (
         <div className="card">
           <div className="card-title">You were referred</div>
-          <p className="muted" style={{ fontSize: 12.5 }}>You joined using a friend's code — your welcome bonus was credited on your first completed ad view.</p>
+          <p className="muted" style={{ fontSize: 12.5 }}>You joined using a friend's code — your welcome bonus is credited once you verify your identity.</p>
         </div>
       )}
     </div>

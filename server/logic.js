@@ -116,7 +116,6 @@ function doCompleteView(db, { userId, campaignId, attentionPassed, interruptions
     });
     return { error: "Attention check missed — this view wasn't counted. Try again." };
   }
-  const isFirstEverView = !db.transactions.some((t) => t.type === "AD_VIEW" && t.userId === userId);
   const userShare = round2(campaign.cpv * (cfg.membership[user.membership].sharePct / 100));
   const platformShare = round2(campaign.cpv - userShare);
   campaign.spent = round2(campaign.spent + campaign.cpv);
@@ -131,7 +130,6 @@ function doCompleteView(db, { userId, campaignId, attentionPassed, interruptions
     userId, advertiserId: campaign.advertiserId, campaignId, campaignName: campaign.name,
     cpv: campaign.cpv, userShare, platformShare, interruptions: interruptions || 0, variant: usedVariant,
   });
-  if (isFirstEverView) maybePayReferralBonus(db, userId);
   maybePayLoyaltyBonus(db, userId);
   return { message: `You earned £${userShare.toFixed(2)}.` };
 }
@@ -277,6 +275,13 @@ function doApplyIdentityResult(db, { userId, status, firstName, lastName, dob })
   user.identityVerifiedName = firstName && lastName ? `${firstName} ${lastName}` : null;
   user.identityFingerprint = fingerprint;
   user.identityDuplicateFlag = duplicate;
+
+  // Referral bonus now only pays on genuine, non-duplicate identity
+  // verification — not just watching one ad — specifically because that
+  // was trivially farmable with fake accounts. A duplicate match means
+  // this is the same real person as an existing account, so it's
+  // deliberately excluded here even though verification itself succeeded.
+  if (!duplicate) maybePayReferralBonus(db, userId);
 
   return { message: duplicate ? "Verified, but matches another account — flagged for review." : "Identity verified." };
 }
@@ -602,8 +607,8 @@ function generateReferralCode(db) {
   return code;
 }
 
-const REFERRAL_BONUS_REFERRER = 2.00;
-const REFERRAL_BONUS_REFEREE = 1.00;
+const REFERRAL_BONUS_REFERRER = 1.00;
+const REFERRAL_BONUS_REFEREE = 0.50;
 
 function maybePayReferralBonus(db, refereeId) {
   const referee = db.users[refereeId];

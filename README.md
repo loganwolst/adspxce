@@ -23,6 +23,22 @@ package.json      Root scripts (build client, start server)
 
 ## Since the last build
 
+- **Referral bonuses halved, and now only pay on genuine identity
+  verification, not on watching one ad**: closes a real farming
+  loophole — previously, someone could register fake accounts, watch a
+  single ad on each, and collect bonuses repeatedly with no real
+  friction. Identity verification (built earlier) is genuinely harder to
+  fake, and ties directly into the duplicate-detection system already
+  in place — verified this directly: a second account verifying with
+  the *same* real identity as an existing one gets flagged as a
+  duplicate and correctly earns nothing, while a first, genuine
+  verification pays normally. Also confirmed this can't be double-paid
+  by re-triggering the same result twice. New amounts: £1.00 to the
+  referrer, £0.50 to the person who joined (both halved from before).
+  Updated every place in the app that described the old "watch your
+  first ad" trigger — found and fixed two separate spots with stale
+  copy.
+
 - **Fixed "1 people" grammar** — caught from your screenshot when the
   waitlist genuinely had exactly one person on it. Same issue existed
   in three places (the waitlist screen, the public login message, and
