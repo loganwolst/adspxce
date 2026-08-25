@@ -3,7 +3,7 @@ import {
   Home, Eye, Wallet, ArrowUpRight, Megaphone, Settings, Users, ShieldCheck,
   LogOut, Plus, Check, X, Clock, TrendingUp, CreditCard, Building2,
   AlertCircle, PauseCircle, PlayCircle, Ban, ChevronRight, Sparkles, Lock,
-  ShoppingBag, Package, Gift, Heart, UserPlus, Camera, Search, Bell,
+  ShoppingBag, Package, Gift, Heart, UserPlus, Camera, Search, Bell, MoreVertical,
 } from "lucide-react";
 
 /* ============================== CONSTANTS ============================== */
@@ -1228,7 +1228,7 @@ function UserNotifications({ user, run, pushToast }) {
                   <div className="muted" style={{ fontSize: 11 }}>{fmtDate(n.createdAt)}</div>
                 </div>
               </div>
-              {n.type === "follow_request" && (
+              {n.type === "follow_request" && (user.followRequestsReceived || []).includes(n.relatedId) && (
                 <div className="row-actions" onClick={(e) => e.stopPropagation()}>
                   <button className="btn-mini" onClick={async () => { const r = await run('APPROVE_FOLLOW_REQUEST', { requesterId: n.relatedId }); pushToast(r.message || r.error, r.error ? "error" : "success"); markRead(n.id); }}>Approve</button>
                   <button className="btn-mini danger" onClick={async () => { const r = await run('DENY_FOLLOW_REQUEST', { requesterId: n.relatedId }); pushToast(r.message || r.error, r.error ? "error" : "success"); markRead(n.id); }}>Deny</button>
@@ -1255,6 +1255,7 @@ function UserProfile({ user, db, run, pushToast }) {
   const [findLoading, setFindLoading] = useState(false);
   const [viewingId, setViewingId] = useState(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const handleAvatarFile = (e) => {
     const file = e.target.files?.[0];
@@ -1392,16 +1393,38 @@ function UserProfile({ user, db, run, pushToast }) {
       <div className="page-head"><h2>Profile</h2><p>Tell us a bit about yourself so we can match you with more relevant — and often higher-paying — ads.</p></div>
 
       <div className="card">
-        <div className="avatar-upload-row">
-          <label className="avatar-upload-btn">
-            <Avatar dataUrl={user.avatarDataUrl} name={user.name} size={64} />
-            <input type="file" accept="image/*" onChange={handleAvatarFile} disabled={uploadingAvatar} />
-          </label>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 16 }}>{user.name}</div>
-            <div className="muted" style={{ fontSize: 12 }}>{uploadingAvatar ? "Uploading…" : "Tap your photo to change it"}</div>
+        <div className="profile-header-row">
+          <div className="avatar-upload-row" style={{ marginBottom: 0 }}>
+            <label className="avatar-upload-btn">
+              <Avatar dataUrl={user.avatarDataUrl} name={user.name} size={64} />
+              <input type="file" accept="image/*" onChange={handleAvatarFile} disabled={uploadingAvatar} />
+            </label>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 16 }}>{user.name}</div>
+              <div className="muted" style={{ fontSize: 12 }}>{uploadingAvatar ? "Uploading…" : "Tap your photo to change it"}</div>
+            </div>
           </div>
+
+          {user.identityVerificationStatus === "verified" ? (
+            <div className="identity-pill verified"><Check size={13} /> Verified</div>
+          ) : (
+            <button
+              className={`identity-pill ${user.identityVerificationStatus === "processing" ? "processing" : "unverified"}`}
+              onClick={user.identityVerificationStatus === "processing" ? checkIdentityStatus : startIdentityVerification}
+              disabled={startingIdentity || checkingIdentity}
+            >
+              <AlertCircle size={13} />
+              {startingIdentity ? "Redirecting…" : checkingIdentity ? "Checking…" : user.identityVerificationStatus === "processing" ? "Verification pending — tap to check" : user.identityVerificationStatus === "failed" ? "Verification failed — tap to retry" : "Not verified — required to watch ads"}
+            </button>
+          )}
+
+          <button className="icon-btn" onClick={() => setMenuOpen((o) => !o)} aria-label="More" aria-expanded={menuOpen}>
+            <MoreVertical size={18} />
+          </button>
         </div>
+
+        {menuOpen && (
+        <>
         <div className="profile-stats-row">
           <button type="button" className={socialTab === "wishlist" ? "profile-stat active" : "profile-stat"} onClick={() => setSocialTab("wishlist")}><strong>{(user.wishlist || []).length}</strong><span>Wishlist</span></button>
           <button type="button" className={socialTab === "followers" ? "profile-stat active" : "profile-stat"} onClick={() => setSocialTab("followers")}><strong>{followers.length}</strong><span>Followers</span></button>
@@ -1474,6 +1497,8 @@ function UserProfile({ user, db, run, pushToast }) {
             ))}
           </div>
         )}
+        </>
+        )}
       </div>
 
       {viewingId && <ViewProfile targetId={viewingId} db={db} run={run} pushToast={pushToast} onClose={() => setViewingId(null)} />}
@@ -1496,32 +1521,6 @@ function UserProfile({ user, db, run, pushToast }) {
         </div>
         <button className="btn btn-primary" type="submit" style={{ marginTop: 22 }}><Check size={15} /> Save profile</button>
       </form>
-
-      <div className="card">
-        <div className="card-title">Identity verification</div>
-        {user.identityVerificationStatus === "verified" ? (
-          <div className="inline-warning" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>
-            <Check size={14} /> Verified{user.identityDuplicateFlag ? " — flagged for review (matches another account)" : ""}
-          </div>
-        ) : (
-          <>
-            <p className="muted" style={{ fontSize: 12.5, marginBottom: 12 }}>
-              Optional for now — confirms you're a real person with one account, using a quick photo ID check via Stripe.
-              We never see or store your ID document, only the verified result.
-            </p>
-            <div className="row-actions">
-              <button className="btn btn-primary" onClick={startIdentityVerification} disabled={startingIdentity}>
-                {startingIdentity ? "Redirecting…" : user.identityVerificationStatus === "failed" ? "Try again" : "Verify my identity"}
-              </button>
-              {user.identityVerificationSessionId && (
-                <button className="btn btn-ghost" onClick={checkIdentityStatus} disabled={checkingIdentity}>
-                  {checkingIdentity ? "Checking…" : "I've completed it — check status"}
-                </button>
-              )}
-            </div>
-          </>
-        )}
-      </div>
 
       <div className="card">
         <div className="card-title">Ad preferences</div>
@@ -3128,6 +3127,11 @@ function GlobalStyle() {
       .wishlist-tile-name { font-size: 12px; font-weight: 600; margin-bottom: 4px; }
       .wishlist-tile-price { font-size: 12px; color: var(--accent); font-family: 'IBM Plex Mono', monospace; }
       .avatar-upload-row { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+      .profile-header-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+      .identity-pill { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 7px 14px; border-radius: 100px; border: none; white-space: nowrap; }
+      .identity-pill.verified { background: var(--accent-soft); color: var(--accent); }
+      .identity-pill.unverified { background: var(--danger-soft); color: var(--danger); cursor: pointer; }
+      .identity-pill.processing { background: rgba(232,196,104,0.15); color: #E8C468; cursor: pointer; }
       .avatar-upload-btn { position: relative; cursor: pointer; }
       .avatar-upload-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
       .follower-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-top: 1px dashed var(--line); }

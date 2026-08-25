@@ -23,6 +23,24 @@ package.json      Root scripts (build client, start server)
 
 ## Since the last build
 
+- **Restructured the Profile page header** as requested: a 3-dot menu
+  in the top-right now tucks away the wishlist/followers/following
+  section (previously always visible, now on-demand), and identity
+  verification moved into a single, clear status pill in the middle —
+  green "Verified" when done, or an amber/red tappable pill showing
+  exactly what's needed otherwise. Removed the old separate identity
+  card entirely, since having it in two places wasn't actually clearer.
+  Also caught and fixed stale copy while relocating it — it still said
+  "Optional for now," which has been wrong since verification became
+  mandatory to watch ads.
+
+- **Fixed a real bug in Notifications**: Approve/Deny buttons stayed on
+  a follow-request notification even after it had already been
+  approved or denied, which is exactly as confusing as it sounds. Now
+  checks the live request status rather than the notification's fixed
+  type, so the buttons correctly disappear the moment the request is
+  actually resolved.
+
 - **Fixed profile picture uploads not working** — the actual bug: the
   size cap (180KB) was smaller than almost any real, unedited phone
   photo, which are typically several megabytes. Raising the number
