@@ -83,7 +83,7 @@ function doRegister(db, { role, name, email, passwordHash, company, contact, ref
     stripeConnectAccountId: null, stripeConnectOnboarded: false, lastLoyaltyBonusWeek: null,
     identityVerificationStatus: "none", identityVerificationSessionId: null, identityVerifiedAt: null,
     identityVerifiedName: null, identityFingerprint: null, identityDuplicateFlag: false,
-    avatarDataUrl: null, profileVisibility: "private", wishlist: [], following: [], followRequestsReceived: [], createdAt: nowISO(),
+    avatarDataUrl: null, profileVisibility: "private", wishlist: [], following: [], followRequestsReceived: [], notifications: [], createdAt: nowISO(),
   };
   return {
     message: waitlisted
@@ -296,7 +296,30 @@ function doApplyIdentityResult(db, { userId, status, firstName, lastName, dob })
 // shared (name, picture, wishlist) are ever exposed. Balance, email, trust
 // score, and everything else stays fully private regardless.
 
-const MAX_AVATAR_BASE64_BYTES = 180 * 1024;
+const MAX_AVATAR_BASE64_BYTES = 400 * 1024; // generous now that the client compresses before upload
+
+function pushNotification(user, type, message, relatedId) {
+  if (!user.notifications) user.notifications = [];
+  user.notifications.unshift({ id: uid("notif"), type, message, relatedId: relatedId || null, read: false, createdAt: nowISO() });
+  // Keep this bounded — no need to accumulate forever.
+  if (user.notifications.length > 100) user.notifications.length = 100;
+}
+
+function doMarkNotificationRead(db, { userId, notificationId }) {
+  const user = db.users[userId];
+  if (!user || !user.notifications) return { error: "Not found." };
+  const n = user.notifications.find((x) => x.id === notificationId);
+  if (!n) return { error: "Notification not found." };
+  n.read = true;
+  return { message: "Marked as read." };
+}
+
+function doMarkAllNotificationsRead(db, { userId }) {
+  const user = db.users[userId];
+  if (!user) return { error: "User not found." };
+  (user.notifications || []).forEach((n) => { n.read = true; });
+  return { message: "All marked as read." };
+}
 
 function doSetAvatar(db, { userId, avatarDataUrl }) {
   const user = db.users[userId];
@@ -354,6 +377,7 @@ function doFollowAccount(db, { userId, targetId }) {
   if (!target.followRequestsReceived) target.followRequestsReceived = [];
   if (target.followRequestsReceived.includes(userId)) return { error: "Follow request already sent." };
   target.followRequestsReceived.push(userId);
+  pushNotification(target, "follow_request", `${user.name} wants to follow you.`, userId);
   return { message: "Follow request sent — they'll need to approve it." };
 }
 
@@ -378,6 +402,7 @@ function doApproveFollowRequest(db, { userId, requesterId }) {
   user.followRequestsReceived = user.followRequestsReceived.filter((id) => id !== requesterId);
   if (!requester.following) requester.following = [];
   if (!requester.following.includes(userId)) requester.following.push(userId);
+  pushNotification(requester, "follow_approved", `${user.name} approved your follow request.`, userId);
   return { message: `Approved — ${requester.name} is now following you.` };
 }
 
@@ -665,7 +690,15 @@ function doRestockProduct(db, { userId, productId, addQty }) {
   if (p.advertiserId !== userId) return { error: "You can only manage your own products." };
   const qty = parseInt(addQty, 10);
   if (!(qty > 0)) return { error: "Enter a valid quantity to add." };
+  const wasOutOfStock = p.stock <= 0;
   p.stock = p.stock + qty;
+  if (wasOutOfStock && p.stock > 0) {
+    Object.values(db.users).forEach((u) => {
+      if (u.role === "user" && (u.wishlist || []).includes(productId)) {
+        pushNotification(u, "back_in_stock", `${p.name} is back in stock.`, productId);
+      }
+    });
+  }
   return { message: `Added ${qty} units of stock.` };
 }
 
@@ -903,4 +936,5 @@ module.exports = {
   doAdmitFromWaitlist, doAdmitWaitlistBatch, waitlistCapacity, admittedUserCount, autoAdmitFromWaitlist,
   doSetAvatar, doSetProfileVisibility, doToggleWishlist, doFollowAccount, doFollowByCode,
   doUnfollowAccount, doApproveFollowRequest, doDenyFollowRequest, doRemoveFollower, getPublicProfile,
+  doMarkNotificationRead, doMarkAllNotificationsRead,
 };

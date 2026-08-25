@@ -61,6 +61,8 @@ const ACTIONS = {
   APPROVE_FOLLOW_REQUEST: { fn: logic.doApproveFollowRequest, level: "self" },
   DENY_FOLLOW_REQUEST: { fn: logic.doDenyFollowRequest, level: "self" },
   REMOVE_FOLLOWER: { fn: logic.doRemoveFollower, level: "self" },
+  MARK_NOTIFICATION_READ: { fn: logic.doMarkNotificationRead, level: "self" },
+  MARK_ALL_NOTIFICATIONS_READ: { fn: logic.doMarkAllNotificationsRead, level: "self" },
   ADMIT_FROM_WAITLIST: { fn: logic.doAdmitFromWaitlist, level: "admin" },
   ADMIT_WAITLIST_BATCH: { fn: logic.doAdmitWaitlistBatch, level: "admin" },
   CREATE_PRODUCT: { fn: logic.doCreateProduct, level: "self" },

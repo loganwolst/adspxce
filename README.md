@@ -23,6 +23,26 @@ package.json      Root scripts (build client, start server)
 
 ## Since the last build
 
+- **Fixed profile picture uploads not working** — the actual bug: the
+  size cap (180KB) was smaller than almost any real, unedited phone
+  photo, which are typically several megabytes. Raising the number
+  alone wasn't the right fix, since a full-resolution photo could still
+  blow past any reasonable cap — instead, the upload now resizes and
+  compresses the image client-side (down to a sensible display size,
+  re-encoded as JPEG) before it's ever sent, so it works reliably
+  regardless of the original photo's size. Verified directly that a
+  realistic compressed size now passes comfortably, while a genuinely
+  oversized upload still correctly gets rejected.
+
+- **Added Notifications**, right below Profile as asked — follow
+  requests, approvals, and wishlist restock alerts, with an unread badge
+  on the nav item. Follow request notifications are directly actionable
+  (Approve/Deny right there, not just an FYI). Tested the trickier edge
+  cases directly: restock notifications only fire once, right when a
+  product actually transitions from out-of-stock to in-stock, not on
+  every restock afterward — and only to people who actually wishlisted
+  that specific product, nobody else.
+
 - **Fixed Log out being far away on both mobile and desktop** — the
   earlier fix (pinning the sidebar with sticky positioning and pushing
   Log out to the bottom of a full-height column) was a fragile

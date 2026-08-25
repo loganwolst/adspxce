@@ -3,7 +3,7 @@ import {
   Home, Eye, Wallet, ArrowUpRight, Megaphone, Settings, Users, ShieldCheck,
   LogOut, Plus, Check, X, Clock, TrendingUp, CreditCard, Building2,
   AlertCircle, PauseCircle, PlayCircle, Ban, ChevronRight, Sparkles, Lock,
-  ShoppingBag, Package, Gift, Heart, UserPlus, Camera, Search,
+  ShoppingBag, Package, Gift, Heart, UserPlus, Camera, Search, Bell,
 } from "lucide-react";
 
 /* ============================== CONSTANTS ============================== */
@@ -1196,6 +1196,52 @@ function WishlistGrid({ productIds, db, onRemove, readOnly }) {
   );
 }
 
+function UserNotifications({ user, run, pushToast }) {
+  const notifications = user.notifications || [];
+  const unreadCount = notifications.filter((n) => !n.read).length;
+
+  const markRead = async (id) => {
+    await run('MARK_NOTIFICATION_READ', { notificationId: id });
+  };
+
+  return (
+    <div>
+      <div className="page-head">
+        <h2>Notifications</h2>
+        <p>Follow requests, approvals, and wishlist restocks — anything worth knowing about.</p>
+      </div>
+      {unreadCount > 0 && (
+        <button className="btn btn-ghost" style={{ marginBottom: 14 }} onClick={async () => { const r = await run('MARK_ALL_NOTIFICATIONS_READ', {}); pushToast(r.message || r.error, r.error ? "error" : "success"); }}>
+          Mark all as read
+        </button>
+      )}
+      <div className="card">
+        {notifications.length === 0 ? (
+          <EmptyState icon={Bell} title="Nothing yet" sub="Follow requests, approvals, and restock alerts will show up here." />
+        ) : (
+          notifications.map((n) => (
+            <div key={n.id} className="follower-row" onClick={() => !n.read && markRead(n.id)} style={{ cursor: n.read ? "default" : "pointer", opacity: n.read ? 0.6 : 1 }}>
+              <div className="follower-row-info">
+                {!n.read && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--accent)", flexShrink: 0 }} />}
+                <div>
+                  <div style={{ fontSize: 13 }}>{n.message}</div>
+                  <div className="muted" style={{ fontSize: 11 }}>{fmtDate(n.createdAt)}</div>
+                </div>
+              </div>
+              {n.type === "follow_request" && (
+                <div className="row-actions" onClick={(e) => e.stopPropagation()}>
+                  <button className="btn-mini" onClick={async () => { const r = await run('APPROVE_FOLLOW_REQUEST', { requesterId: n.relatedId }); pushToast(r.message || r.error, r.error ? "error" : "success"); markRead(n.id); }}>Approve</button>
+                  <button className="btn-mini danger" onClick={async () => { const r = await run('DENY_FOLLOW_REQUEST', { requesterId: n.relatedId }); pushToast(r.message || r.error, r.error ? "error" : "success"); markRead(n.id); }}>Deny</button>
+                </div>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
 function UserProfile({ user, db, run, pushToast }) {
   const existing = user.profile || {};
   const [interests, setInterests] = useState(existing.interests || []);
@@ -1215,14 +1261,32 @@ function UserProfile({ user, db, run, pushToast }) {
     if (!file) return;
     if (!file.type.startsWith("image/")) { pushToast("Please choose an image file.", "error"); return; }
     setUploadingAvatar(true);
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const r = await run('SET_AVATAR', { avatarDataUrl: reader.result });
+    // Real photos are typically several MB — far too large to store raw.
+    // Resize to a sensible display size and re-encode as JPEG, so this
+    // works reliably regardless of how large the original photo is.
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    img.onload = async () => {
+      URL.revokeObjectURL(objectUrl);
+      const MAX_DIM = 400;
+      let { width, height } = img;
+      if (width > height && width > MAX_DIM) { height = Math.round(height * (MAX_DIM / width)); width = MAX_DIM; }
+      else if (height >= width && height > MAX_DIM) { width = Math.round(width * (MAX_DIM / height)); height = MAX_DIM; }
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+      const compressed = canvas.toDataURL("image/jpeg", 0.82);
+      const r = await run('SET_AVATAR', { avatarDataUrl: compressed });
       pushToast(r.message || r.error, r.error ? "error" : "success");
       setUploadingAvatar(false);
     };
-    reader.onerror = () => { pushToast("Couldn't read that image.", "error"); setUploadingAvatar(false); };
-    reader.readAsDataURL(file);
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      pushToast("Couldn't read that image.", "error");
+      setUploadingAvatar(false);
+    };
+    img.src = objectUrl;
   };
 
   const findByCode = async () => {
@@ -2570,6 +2634,7 @@ const NAV = {
     { key: "store", label: "Store", icon: ShoppingBag },
     { key: "orders", label: "My orders", icon: Package },
     { key: "profile", label: "Profile", icon: Users },
+    { key: "notifications", label: "Notifications", icon: Bell },
     { key: "referrals", label: "Referrals", icon: Gift },
     { key: "membership", label: "Membership", icon: Sparkles },
     { key: "withdraw", label: "Withdraw", icon: Wallet },
@@ -2668,6 +2733,7 @@ function Shell({ user, db, run, pushToast, onLogout }) {
     else if (page === "store") content = <UserStore user={db.users[user.id]} db={db} run={run} pushToast={pushToast} />;
     else if (page === "orders") content = <UserOrders user={db.users[user.id]} db={db} />;
     else if (page === "profile") content = <UserProfile user={db.users[user.id]} db={db} run={run} pushToast={pushToast} />;
+    else if (page === "notifications") content = <UserNotifications user={db.users[user.id]} run={run} pushToast={pushToast} />;
     else if (page === "referrals") content = <UserReferrals user={db.users[user.id]} db={db} />;
     else if (page === "membership") content = <UserMembership user={db.users[user.id]} db={db} run={run} pushToast={pushToast} />;
     else if (page === "withdraw") content = <UserWithdraw user={db.users[user.id]} db={db} run={run} pushToast={pushToast} />;
@@ -2698,9 +2764,11 @@ function Shell({ user, db, run, pushToast, onLogout }) {
         <nav aria-label="Main navigation">
           {nav.map((n) => {
             const Icon = n.icon;
+            const unread = n.key === "notifications" ? (db.users[user.id]?.notifications || []).filter((x) => !x.read).length : 0;
             return (
               <button key={n.key} className={page === n.key ? "nav-btn active" : "nav-btn"} onClick={() => setPage(n.key)} aria-current={page === n.key ? "page" : undefined}>
                 <Icon size={16} aria-hidden="true" /> {n.label}
+                {unread > 0 && <span className="nav-badge">{unread > 9 ? "9+" : unread}</span>}
               </button>
             );
           })}
@@ -2991,6 +3059,7 @@ function GlobalStyle() {
       .nav-btn:hover { background: var(--bg); }
       .nav-btn.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
       .nav-btn.logout { margin: 10px 12px 0; padding-top: 14px; border-top: 1px solid var(--line); color: var(--danger); }
+      .nav-badge { margin-left: auto; background: var(--danger); color: white; font-size: 10.5px; font-weight: 700; border-radius: 100px; padding: 1px 6px; }
       .main { align-self: start; min-width: 0; }
       .topbar {
         display: flex; align-items: center; justify-content: space-between; padding: 18px 32px; border-bottom: 1px solid var(--line);
