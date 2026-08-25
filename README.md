@@ -23,6 +23,17 @@ package.json      Root scripts (build client, start server)
 
 ## Since the last build
 
+- **Fixed Log out being far away on both mobile and desktop** — the
+  earlier fix (pinning the sidebar with sticky positioning and pushing
+  Log out to the bottom of a full-height column) was a fragile
+  combination of several CSS mechanisms interacting, and it clearly
+  wasn't holding up reliably, as this bug report showed. Replaced it
+  with something much simpler: Log out no longer gets pushed anywhere
+  at all — it just sits directly after the last nav item, with a
+  divider line to mark it as separate. Nothing to scroll to reach it,
+  regardless of screen size, since there's no "far edge" it's being
+  pushed toward anymore.
+
 - **Added the top-bar search you asked for**, placed exactly where you
   circled — a "Search user" / "Search company" toggle with live results
   as you type. Reuses the exact same minimal-preview safety principle

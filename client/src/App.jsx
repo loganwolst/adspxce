@@ -2985,13 +2985,12 @@ function GlobalStyle() {
       .sidebar {
         background: radial-gradient(320px 200px at 0% 0%, rgba(82,227,194,0.05), transparent 60%), var(--surface);
         border-right: 1px solid var(--line); display: flex; flex-direction: column; padding-bottom: 16px;
-        position: sticky; top: 0; height: 100vh; overflow-y: auto;
       }
-      .sidebar nav { display: flex; flex-direction: column; gap: 2px; padding: 6px 12px; flex: 1; }
+      .sidebar nav { display: flex; flex-direction: column; gap: 2px; padding: 6px 12px; }
       .nav-btn { display: flex; align-items: center; gap: 10px; border: none; background: transparent; padding: 10px 12px; border-radius: 8px; font-size: 13px; font-weight: 500; color: var(--ink-soft); text-align: left; }
       .nav-btn:hover { background: var(--bg); }
       .nav-btn.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
-      .nav-btn.logout { margin: 0 12px; color: var(--danger); }
+      .nav-btn.logout { margin: 10px 12px 0; padding-top: 14px; border-top: 1px solid var(--line); color: var(--danger); }
       .main { align-self: start; min-width: 0; }
       .topbar {
         display: flex; align-items: center; justify-content: space-between; padding: 18px 32px; border-bottom: 1px solid var(--line);
