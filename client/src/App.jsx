@@ -1730,12 +1730,22 @@ function AdvertiserDashboard({ adv, db }) {
   const txns = db.transactions.filter((t) => t.userId === adv.id || t.advertiserId === adv.id);
   const totalSpend = campaigns.reduce((s, c) => s + c.spent, 0);
   const totalViews = campaigns.reduce((s, c) => s + c.views, 0);
+  // Still-locked budget — pending/active/paused campaigns haven't given
+  // their unspent portion back yet, so it's committed, not free.
+  const committedBudget = round2(
+    campaigns
+      .filter((c) => ["pending", "active", "paused"].includes(c.status))
+      .reduce((s, c) => s + (c.totalBudget - c.spent), 0)
+  );
+  const totalAccountValue = round2(adv.advertiserBalance + committedBudget);
 
   return (
     <AdvertiserGate adv={adv}>
       <div className="page-head"><h2>{adv.company}</h2><p>Advertiser overview and campaign performance.</p></div>
       <div className="stat-grid">
-        <StatCard label="Advertising balance" value={money(adv.advertiserBalance)} tone="#52E3C2" />
+        <StatCard label="Total account value" value={money(totalAccountValue)} sub="Free + committed to campaigns" tone="#52E3C2" />
+        <StatCard label="Free balance" value={money(adv.advertiserBalance)} sub="Available to withdraw" />
+        <StatCard label="Committed to campaigns" value={money(committedBudget)} sub="Runs its course, not withdrawable yet" />
         <StatCard label="Active campaigns" value={campaigns.filter((c) => c.status === "active").length} />
         <StatCard label="Total spend" value={money(totalSpend)} />
         <StatCard label="Total verified views" value={totalViews} />
@@ -2298,11 +2308,18 @@ function AdminOverview({ db }) {
   const subscriptionRevenue = txns.filter((t) => t.type === "SUBSCRIPTION").reduce((s, t) => s + t.amount, 0);
   const membershipRevenue = txns.filter((t) => t.type === "MEMBERSHIP_PURCHASE").reduce((s, t) => s + t.amount, 0);
   const deposits = txns.filter((t) => t.type === "DEPOSIT").reduce((s, t) => s + t.amount, 0);
+  // Real costs that leave the platform's own pocket — these credit user
+  // balances directly and were never actually subtracted from revenue
+  // anywhere before, which meant "platform revenue" was overstating what's
+  // genuinely left over.
+  const referralBonusesPaid = txns.filter((t) => t.type === "REFERRAL_BONUS").reduce((s, t) => s + t.amount, 0);
+  const loyaltyBonusesPaid = txns.filter((t) => t.type === "LOYALTY_BONUS").reduce((s, t) => s + t.amount, 0);
   const pendingWithdrawals = Object.values(db.withdrawals).filter((w) => w.status === "pending");
   const pendingAdvertisers = Object.values(db.users).filter((u) => u.role === "advertiser" && u.advertiserStatus === "pending");
   const pendingCampaigns = Object.values(db.campaigns).filter((c) => c.status === "pending");
   const totalUsers = Object.values(db.users).filter((u) => u.role === "user").length;
   const totalPlatformRevenue = platformRevenue + subscriptionRevenue + membershipRevenue;
+  const netPlatformPosition = round2(totalPlatformRevenue - referralBonusesPaid - loyaltyBonusesPaid);
   const orders = Object.values(db.orders || {});
   const storeGMV = orders.reduce((s, o) => s + o.total, 0);
   const pendingOrders = orders.filter((o) => ["pending", "processing"].includes(o.status));
@@ -2311,8 +2328,11 @@ function AdminOverview({ db }) {
     <div>
       <div className="page-head"><h2>Platform overview</h2><p>Real-time snapshot of adspXce's marketplace.</p></div>
       <div className="stat-grid">
-        <StatCard label="Total platform revenue" value={money(totalPlatformRevenue)} tone="#52E3C2" />
-        <StatCard label="User rewards paid" value={money(userRewards)} />
+        <StatCard label="Net platform position" value={money(netPlatformPosition)} sub="Revenue minus referral & loyalty bonuses paid" tone="#52E3C2" />
+        <StatCard label="Total platform revenue" value={money(totalPlatformRevenue)} sub="Before bonus payouts, below" />
+        <StatCard label="Referral bonuses paid" value={money(referralBonusesPaid)} />
+        <StatCard label="Loyalty bonuses paid" value={money(loyaltyBonusesPaid)} />
+        <StatCard label="User rewards paid" value={money(userRewards)} sub="Already excluded from revenue above" />
         <StatCard label="Advertiser spend" value={money(advertiserSpend)} />
         <StatCard label="Subscription revenue" value={money(subscriptionRevenue)} />
         <StatCard label="Registered users" value={totalUsers} />

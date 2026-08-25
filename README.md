@@ -23,6 +23,29 @@ package.json      Root scripts (build client, start server)
 
 ## Since the last build
 
+- **Fixed a real gap in Admin's "Total platform revenue"** — genuinely
+  good catch. Referral and loyalty bonuses credit user balances
+  directly but were never actually subtracted from revenue anywhere,
+  meaning that figure was overstating what's genuinely left for the
+  business this whole time. Added "Net platform position" as the true
+  bottom line (revenue minus both bonus types), plus separate line
+  items for each so it's clear exactly where the difference comes
+  from. Verified directly: triggering a real referral bonus correctly
+  pulls net position down by exactly the payout amount, while leaving
+  the revenue figure itself untouched, since a bonus isn't ad-view
+  income.
+
+- **Added a clearer full picture on the Advertiser Dashboard**: "Total
+  account value" now shows free balance plus whatever's still committed
+  to running campaigns, so it's obvious at a glance how the numbers
+  relate — "Advertising balance" was previously the same figure as
+  "Available to withdraw" with no explanation why, which was
+  confusing (fair point, worth fixing). Renamed it to "Free balance"
+  for clarity and added "Committed to campaigns" alongside it. Verified
+  the maths directly against real seed data, including that a
+  withdrawal correctly reduces the free and total figures while leaving
+  committed budget completely untouched.
+
 - **Advertisers can now withdraw uncommitted balance** — but only the
   part that was never allocated to a campaign; money committed to a
   campaign runs its course, no early exit, as decided. Reuses the exact
