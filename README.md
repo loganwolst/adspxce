@@ -23,6 +23,14 @@ package.json      Root scripts (build client, start server)
 
 ## Since the last build
 
+- **Corrected the Profile restructure** — I'd tucked the wrong section
+  behind the 3-dot menu the first time. Wishlist/Followers/Following now
+  stays visible as the main content, and the 3 dots open a proper
+  dropdown menu with a "Tell us more about yourself" option, which is
+  what reveals the age range/region/interests/ad-preferences form —
+  that's the part that was making the page long, not the social
+  section.
+
 - **Restructured the Profile page header** as requested: a 3-dot menu
   in the top-right now tucks away the wishlist/followers/following
   section (previously always visible, now on-demand), and identity

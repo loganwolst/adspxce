@@ -1256,6 +1256,7 @@ function UserProfile({ user, db, run, pushToast }) {
   const [viewingId, setViewingId] = useState(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
 
   const handleAvatarFile = (e) => {
     const file = e.target.files?.[0];
@@ -1418,13 +1419,23 @@ function UserProfile({ user, db, run, pushToast }) {
             </button>
           )}
 
-          <button className="icon-btn" onClick={() => setMenuOpen((o) => !o)} aria-label="More" aria-expanded={menuOpen}>
-            <MoreVertical size={18} />
-          </button>
+          <div className="profile-menu-wrap">
+            <button className="icon-btn" onClick={() => setMenuOpen((o) => !o)} aria-label="More" aria-expanded={menuOpen}>
+              <MoreVertical size={18} />
+            </button>
+            {menuOpen && (
+              <div className="profile-menu-dropdown">
+                <button
+                  className="profile-menu-item"
+                  onClick={() => { setAboutOpen((o) => !o); setMenuOpen(false); }}
+                >
+                  {aboutOpen ? "Hide" : "Tell us more about yourself"}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
-        {menuOpen && (
-        <>
         <div className="profile-stats-row">
           <button type="button" className={socialTab === "wishlist" ? "profile-stat active" : "profile-stat"} onClick={() => setSocialTab("wishlist")}><strong>{(user.wishlist || []).length}</strong><span>Wishlist</span></button>
           <button type="button" className={socialTab === "followers" ? "profile-stat active" : "profile-stat"} onClick={() => setSocialTab("followers")}><strong>{followers.length}</strong><span>Followers</span></button>
@@ -1497,12 +1508,11 @@ function UserProfile({ user, db, run, pushToast }) {
             ))}
           </div>
         )}
-        </>
-        )}
       </div>
 
       {viewingId && <ViewProfile targetId={viewingId} db={db} run={run} pushToast={pushToast} onClose={() => setViewingId(null)} />}
 
+      {aboutOpen && (
       <form className="card" onSubmit={save}>
         <div className="card-title">Age range</div>
         <div className="chip-row">
@@ -1521,7 +1531,9 @@ function UserProfile({ user, db, run, pushToast }) {
         </div>
         <button className="btn btn-primary" type="submit" style={{ marginTop: 22 }}><Check size={15} /> Save profile</button>
       </form>
+      )}
 
+      {aboutOpen && (
       <div className="card">
         <div className="card-title">Ad preferences</div>
         <p className="muted" style={{ marginTop: -8, marginBottom: 12, fontSize: 12.5 }}>Categories you'd rather not see ads for. These are hard-excluded, not just down-ranked.</p>
@@ -1546,6 +1558,7 @@ function UserProfile({ user, db, run, pushToast }) {
           </>
         )}
       </div>
+      )}
     </div>
   );
 }
@@ -3132,6 +3145,10 @@ function GlobalStyle() {
       .identity-pill.verified { background: var(--accent-soft); color: var(--accent); }
       .identity-pill.unverified { background: var(--danger-soft); color: var(--danger); cursor: pointer; }
       .identity-pill.processing { background: rgba(232,196,104,0.15); color: #E8C468; cursor: pointer; }
+      .profile-menu-wrap { position: relative; }
+      .profile-menu-dropdown { position: absolute; top: calc(100% + 6px); right: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 6px; min-width: 200px; box-shadow: 0 12px 32px rgba(0,0,0,0.4); z-index: 30; }
+      .profile-menu-item { display: block; width: 100%; text-align: left; background: transparent; border: none; padding: 9px 10px; border-radius: 6px; font-size: 13px; color: var(--ink); cursor: pointer; }
+      .profile-menu-item:hover { background: var(--surface-2); }
       .avatar-upload-btn { position: relative; cursor: pointer; }
       .avatar-upload-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
       .follower-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-top: 1px dashed var(--line); }
