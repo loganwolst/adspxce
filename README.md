@@ -23,6 +23,22 @@ package.json      Root scripts (build client, start server)
 
 ## Since the last build
 
+- **Advertisers can now withdraw uncommitted balance** — but only the
+  part that was never allocated to a campaign; money committed to a
+  campaign runs its course, no early exit, as decided. Reuses the exact
+  same proven Stripe Connect payout infrastructure already built for
+  user withdrawals, rather than a new parallel system — found and fixed
+  the one real blocker (the onboarding route was hardcoded to reject
+  advertisers). Tested directly: blocked without a payout destination
+  set up, blocked over the available amount, a valid withdrawal
+  correctly reserves funds while leaving campaign-committed money
+  completely untouched, successful and failed transfers both reconcile
+  correctly, and confirmed regular user withdrawals still work exactly
+  as before — the role-aware changes didn't break anything.
+  - Also removed pause/resume/end entirely, after deciding against it —
+    genuinely gone, not just hidden: no dispatcher entry, no functions,
+    no UI. Verified zero remaining references anywhere.
+
 - **Corrected the Profile restructure** — I'd tucked the wrong section
   behind the 3-dot menu the first time. Wishlist/Followers/Following now
   stays visible as the main content, and the 3 dots open a proper

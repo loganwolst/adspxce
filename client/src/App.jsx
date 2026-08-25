@@ -1755,6 +1755,117 @@ function AdvertiserDashboard({ adv, db }) {
   );
 }
 
+function AdvertiserWithdraw({ adv, db, run, pushToast }) {
+  const [amount, setAmount] = useState("");
+  const [settingUpPayout, setSettingUpPayout] = useState(false);
+  const [checkingStatus, setCheckingStatus] = useState(false);
+  const myWithdrawals = Object.values(db.withdrawals).filter((w) => w.userId === adv.id).sort((a, b) => b.requestedAt.localeCompare(a.requestedAt));
+
+  const startPayoutSetup = async () => {
+    setSettingUpPayout(true);
+    try {
+      const res = await fetch("/api/stripe/connect-onboard", { method: "POST", credentials: "include" });
+      const data = await res.json();
+      if (!res.ok || data.error) { pushToast(data.error || "Couldn't start payout setup.", "error"); setSettingUpPayout(false); return; }
+      window.location.href = data.url;
+    } catch (err) {
+      pushToast("Couldn't reach the payment server.", "error");
+      setSettingUpPayout(false);
+    }
+  };
+
+  const checkPayoutStatus = async () => {
+    setCheckingStatus(true);
+    try {
+      const res = await fetch("/api/stripe/connect-refresh", { method: "POST", credentials: "include" });
+      const data = await res.json();
+      if (!res.ok || data.error) { pushToast(data.error || "Couldn't check payout status.", "error"); setCheckingStatus(false); return; }
+      if (data.onboarded) {
+        pushToast("Payout setup confirmed — reloading…", "success");
+        setTimeout(() => window.location.reload(), 800);
+      } else {
+        pushToast("Stripe shows setup isn't fully complete yet.", "error");
+        setCheckingStatus(false);
+      }
+    } catch (err) {
+      pushToast("Couldn't reach the payment server.", "error");
+      setCheckingStatus(false);
+    }
+  };
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("payout") === "return") {
+      window.history.replaceState({}, "", window.location.pathname);
+      if (!adv.stripeConnectOnboarded) checkPayoutStatus();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    const r = await run('REQUEST_ADVERTISER_WITHDRAWAL', { amount: parseFloat(amount) });
+    pushToast(r.message || r.error, r.error ? "error" : "success");
+    if (!r.error) setAmount("");
+  };
+
+  return (
+    <AdvertiserGate adv={adv}>
+      <div className="page-head"><h2>Withdraw</h2><p>Get back any balance that isn't currently committed to a running campaign.</p></div>
+      <div className="inline-warning" style={{ marginBottom: 16, background: "var(--surface-2)", color: "var(--ink-soft)", border: "1px solid var(--line)" }}>
+        Money committed to an active or pending campaign runs its course and can't be withdrawn early —
+        only balance that was never allocated to a campaign is available here.
+      </div>
+      <div className="stat-grid">
+        <StatCard label="Available to withdraw" value={money(adv.advertiserBalance)} tone="#52E3C2" />
+        <StatCard label="Pending withdrawal" value={money(adv.advertiserPendingWithdrawal || 0)} />
+      </div>
+      {!adv.stripeConnectOnboarded && (
+        <div className="card">
+          <div className="card-title">Set up a payout destination</div>
+          <p className="muted" style={{ fontSize: 12.5, marginBottom: 12 }}>
+            One-time setup via Stripe — same process users go through for their own payouts.
+          </p>
+          <div className="row-actions">
+            <button className="btn btn-primary" onClick={startPayoutSetup} disabled={settingUpPayout}>
+              {settingUpPayout ? "Redirecting…" : "Set up payouts"}
+            </button>
+            {adv.stripeConnectAccountId && (
+              <button className="btn btn-ghost" onClick={checkPayoutStatus} disabled={checkingStatus}>
+                {checkingStatus ? "Checking…" : "I've already completed setup — check status"}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+      {adv.stripeConnectOnboarded && (
+        <div className="inline-warning" style={{ background: "var(--accent-soft)", color: "var(--accent)", marginBottom: 16 }}>
+          <Check size={14} /> Payouts are set up — withdrawals below pay out to your real bank account.
+        </div>
+      )}
+      <div className="card">
+        <div className="card-title">Request a withdrawal</div>
+        <form className="inline-form" onSubmit={submit}>
+          <input className="input" type="number" step="0.01" min="0" placeholder="Amount" value={amount} onChange={(e) => setAmount(e.target.value)} />
+          <button className="btn btn-primary" type="submit"><ArrowUpRight size={15} /> Request withdrawal</button>
+        </form>
+      </div>
+      <div className="card">
+        <div className="card-title">History</div>
+        {myWithdrawals.length === 0 ? <EmptyState icon={Wallet} title="No withdrawals yet" /> : (
+          <table className="table">
+            <thead><tr><th>Requested</th><th>Amount</th><th>Status</th></tr></thead>
+            <tbody>
+              {myWithdrawals.map((w) => (
+                <tr key={w.id}><td>{fmtDate(w.requestedAt)}</td><td className="mono">{money(w.amount)}</td><td><Badge status={w.status} /></td></tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </AdvertiserGate>
+  );
+}
+
 function AdvertiserBilling({ adv, db, run, pushToast }) {
   const [deposit, setDeposit] = useState("");
   const [cardAmount, setCardAmount] = useState("");
@@ -2594,6 +2705,7 @@ function describeTxn(t, db, viewerId) {
       if (viewerIsAdvertiser) return { label: `Ad view charge — ${t.campaignName || "campaign"}`, amount: `-${money(t.cpv)}`, tone: "#FF7A7A" };
       return { label: `Ad view — ${t.campaignName || "campaign"}`, amount: `+${money(t.userShare)}`, tone: "#52E3C2" };
     case "WITHDRAWAL": return { label: "Withdrawal", amount: `-${money(t.amount)}`, tone: "#FF7A7A" };
+    case "ADVERTISER_WITHDRAWAL": return { label: "Withdrawal", amount: `-${money(t.amount)}`, tone: "#FF7A7A" };
     case "MEMBERSHIP_PURCHASE": return { label: `Membership → ${TIER_LABELS[t.tier] || t.tier}`, amount: t.amount ? money(t.amount) : "Free", tone: "#9498C4" };
     case "SUBSCRIPTION": return { label: "Advertiser subscription", amount: `-${money(t.amount)}`, tone: "#FF7A7A" };
     case "DEPOSIT": return { label: "Advertising deposit", amount: `+${money(t.amount)}`, tone: "#52E3C2" };
@@ -2658,6 +2770,7 @@ const NAV = {
     { key: "products", label: "Products", icon: ShoppingBag },
     { key: "orders", label: "Orders", icon: Package },
     { key: "billing", label: "Billing", icon: CreditCard },
+    { key: "withdraw", label: "Withdraw", icon: Wallet },
   ],
   admin: [
     { key: "dashboard", label: "Overview", icon: Home },
@@ -2757,6 +2870,7 @@ function Shell({ user, db, run, pushToast, onLogout }) {
     else if (page === "products") content = <AdvertiserProducts adv={adv} db={db} run={run} pushToast={pushToast} />;
     else if (page === "orders") content = <AdvertiserOrders adv={adv} db={db} run={run} pushToast={pushToast} />;
     else if (page === "billing") content = <AdvertiserBilling adv={adv} db={db} run={run} pushToast={pushToast} />;
+    else if (page === "withdraw") content = <AdvertiserWithdraw adv={adv} db={db} run={run} pushToast={pushToast} />;
   } else if (user.role === "admin") {
     if (page === "dashboard") content = <AdminOverview db={db} />;
     else if (page === "users") content = <AdminUsers db={db} run={run} pushToast={pushToast} />;

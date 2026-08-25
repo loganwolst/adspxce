@@ -36,7 +36,7 @@ function seedDB() {
       [adminId]: { id: adminId, role: "admin", name: "Admin", email: "admin@adspxce.test", passwordHash: hash("admin"), createdAt: nowISO() },
       [u1]: { id: u1, role: "user", name: "Jordan Blake", email: "jordan@demo.test", passwordHash: hash("demo"), membership: "basic", balance: 4.80, pendingWithdrawal: 0, totalEarned: 4.80, dailyViewsUsed: 3, dailyViewsDate: todayStr(), verified: true, suspended: false, profile: { interests: ["Outdoors", "Fitness"], ageRange: "25-34", region: "North West England" }, mutedAdvertisers: [], mutedInterests: [], referralCode: "JORDAN1", referredBy: null, referralBonusPaid: true, stripeConnectAccountId: null, stripeConnectOnboarded: false, lastLoyaltyBonusWeek: null, identityVerificationStatus: "none", identityVerificationSessionId: null, identityVerifiedAt: null, identityVerifiedName: null, identityFingerprint: null, identityDuplicateFlag: false, waitlisted: false, avatarDataUrl: null, profileVisibility: "private", wishlist: [], following: [], followRequestsReceived: [], createdAt: nowISO() },
       [u2]: { id: u2, role: "user", name: "Priya Shah", email: "priya@demo.test", passwordHash: hash("demo"), membership: "plus", balance: 18.20, pendingWithdrawal: 0, totalEarned: 42.10, dailyViewsUsed: 0, dailyViewsDate: todayStr(), verified: true, suspended: false, profile: { interests: ["Technology", "Finance"], ageRange: "25-34", region: "London" }, mutedAdvertisers: [], mutedInterests: [], referralCode: "PRIYA1", referredBy: null, referralBonusPaid: true, stripeConnectAccountId: null, stripeConnectOnboarded: false, lastLoyaltyBonusWeek: null, identityVerificationStatus: "none", identityVerificationSessionId: null, identityVerifiedAt: null, identityVerifiedName: null, identityFingerprint: null, identityDuplicateFlag: false, waitlisted: false, avatarDataUrl: null, profileVisibility: "private", wishlist: [], following: [], followRequestsReceived: [], createdAt: nowISO() },
-      [adv1]: { id: adv1, role: "advertiser", name: "Morgan Lee", email: "morgan@brand.test", passwordHash: hash("demo"), company: "Northwind Outfitters", contact: "morgan@brand.test", advertiserStatus: "approved", advertiserBalance: 640.00, subscriptionActive: true, avatarDataUrl: null, createdAt: nowISO() },
+      [adv1]: { id: adv1, role: "advertiser", name: "Morgan Lee", email: "morgan@brand.test", passwordHash: hash("demo"), company: "Northwind Outfitters", contact: "morgan@brand.test", advertiserStatus: "approved", advertiserBalance: 640.00, subscriptionActive: true, avatarDataUrl: null, stripeConnectAccountId: null, stripeConnectOnboarded: false, advertiserPendingWithdrawal: 0, createdAt: nowISO() },
     },
     campaigns: {
       [camp1]: { id: camp1, advertiserId: adv1, name: "Autumn Boot Launch", adTitle: "New Trailhead Boots — 20% Off", content: "Introducing our all-weather Trailhead boot line, built for the first frost.", destinationUrl: "https://example.com/boots", cpv: 0.20, totalBudget: 200, spent: 24, views: 120, dailyBudget: 50, targetAudience: "Outdoors, 25-45", geo: "United Kingdom", interestTags: ["Outdoors", "Fitness"], ageRange: "25-34", status: "active", createdAt: nowISO() },
@@ -64,7 +64,7 @@ function doRegister(db, { role, name, email, passwordHash, company, contact, ref
   const id = uid(role === "advertiser" ? "adv" : "user");
   if (role === "advertiser") {
     if (!company) return { error: "Company name is required for advertiser accounts." };
-    db.users[id] = { id, role: "advertiser", name, email, passwordHash, company, contact: contact || email, advertiserStatus: "pending", advertiserBalance: 0, subscriptionActive: false, avatarDataUrl: null, createdAt: nowISO() };
+    db.users[id] = { id, role: "advertiser", name, email, passwordHash, company, contact: contact || email, advertiserStatus: "pending", advertiserBalance: 0, subscriptionActive: false, avatarDataUrl: null, stripeConnectAccountId: null, stripeConnectOnboarded: false, advertiserPendingWithdrawal: 0, createdAt: nowISO() };
     return { message: "Advertiser account created — pending admin approval.", newId: id };
   }
   let referredBy = null;
@@ -200,7 +200,8 @@ function doMarkWithdrawalTransferred(db, { withdrawalId, stripeTransferId }) {
   const w = db.withdrawals[withdrawalId];
   if (!w) return { error: "Withdrawal not found." };
   const user = db.users[w.userId];
-  user.pendingWithdrawal = round2((user.pendingWithdrawal || 0) - w.amount);
+  const pendingField = user.role === "advertiser" ? "advertiserPendingWithdrawal" : "pendingWithdrawal";
+  user[pendingField] = round2((user[pendingField] || 0) - w.amount);
   w.status = "paid";
   w.resolvedAt = nowISO();
   w.stripeTransferId = stripeTransferId;
@@ -213,8 +214,11 @@ function doFailRealWithdrawal(db, { withdrawalId, reason }) {
   const w = db.withdrawals[withdrawalId];
   if (!w) return { error: "Withdrawal not found." };
   const user = db.users[w.userId];
-  user.pendingWithdrawal = round2((user.pendingWithdrawal || 0) - w.amount);
-  user.balance = round2(user.balance + w.amount); // refund — the transfer never actually happened
+  const isAdvertiser = user.role === "advertiser";
+  const pendingField = isAdvertiser ? "advertiserPendingWithdrawal" : "pendingWithdrawal";
+  const balanceField = isAdvertiser ? "advertiserBalance" : "balance";
+  user[pendingField] = round2((user[pendingField] || 0) - w.amount);
+  user[balanceField] = round2(user[balanceField] + w.amount); // refund — the transfer never actually happened
   w.status = "rejected";
   w.resolvedAt = nowISO();
   w.failureReason = reason || "Payout failed";
@@ -568,6 +572,29 @@ function doAdvertiserDeposit(db, { userId, amount }) {
   adv.advertiserBalance = round2(adv.advertiserBalance + amount);
   db.transactions.unshift({ id: uid("txn"), type: "DEPOSIT", status: "COMPLETED", timestamp: nowISO(), userId, amount: round2(amount) });
   return { message: `£${round2(amount).toFixed(2)} added to your advertising balance.` };
+}
+
+// Only ever draws from advertiserBalance — money already committed to a
+// campaign (deducted the moment that campaign was created) is never
+// touched here, by design: committed money runs its course, no early
+// exit. This is fundamentally lower-risk than a user's earned-money
+// withdrawal (it's literally their own unspent deposit coming back),
+// so unlike doRequestWithdrawal there's no trust-score gating — it just
+// requires a real payout destination to exist.
+function doRequestAdvertiserWithdrawal(db, { userId, amount }) {
+  const adv = db.users[userId];
+  const cfg = db.config;
+  if (!(amount > 0)) return { error: "Enter a valid amount." };
+  if (amount < cfg.withdrawalMinimum) return { error: `Minimum withdrawal is £${cfg.withdrawalMinimum.toFixed(2)}.` };
+  if (amount > adv.advertiserBalance) return { error: "Amount exceeds your available (uncommitted) balance." };
+  if (!adv.stripeConnectOnboarded) return { error: "Set up a payout destination first." };
+
+  adv.advertiserBalance = round2(adv.advertiserBalance - amount);
+  adv.advertiserPendingWithdrawal = round2((adv.advertiserPendingWithdrawal || 0) + amount);
+  const wid = uid("wd");
+  db.withdrawals[wid] = { id: wid, userId, amount: round2(amount), status: "processing", requestedAt: nowISO() };
+  db.transactions.unshift({ id: uid("txn"), type: "ADVERTISER_WITHDRAWAL", status: "PENDING", timestamp: nowISO(), userId, amount: round2(amount), withdrawalId: wid });
+  return { message: "Processing your withdrawal…", needsRealTransfer: true, withdrawalId: wid, amount: round2(amount), userId };
 }
 
 function doCreateCampaign(db, { userId, form }) {
@@ -925,7 +952,7 @@ function doRecordStripeDeposit(db, { userId, amount, stripeSessionId }) {
 
 module.exports = {
   seedDB, INTEREST_TAGS, AGE_RANGES, CHARITIES,
-  doRegister, doCompleteView, doRequestWithdrawal, doResolveWithdrawal, doUpgradeMembership,
+  doRegister, doCompleteView, doRequestWithdrawal, doResolveWithdrawal, doUpgradeMembership, doRequestAdvertiserWithdrawal,
   doAdvertiserSubscribe, doAdvertiserDeposit, doCreateCampaign, doSetCampaignStatus,
   doSetAdvertiserStatus, doSetUserFlag, doUpdateConfig,
   doCreateProduct, doSetProductStatus, doRestockProduct, doPurchaseProduct, doSetOrderStatus,

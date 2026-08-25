@@ -43,6 +43,7 @@ app.use((req, res, next) => {
 const ACTIONS = {
   COMPLETE_VIEW: { fn: logic.doCompleteView, level: "self" },
   REQUEST_WITHDRAWAL: { fn: logic.doRequestWithdrawal, level: "self" },
+  REQUEST_ADVERTISER_WITHDRAWAL: { fn: logic.doRequestAdvertiserWithdrawal, level: "self" },
   UPGRADE_MEMBERSHIP: { fn: logic.doUpgradeMembership, level: "self" },
   ADVERTISER_SUBSCRIBE: { fn: logic.doAdvertiserSubscribe, level: "self" },
   ADVERTISER_DEPOSIT: { fn: logic.doAdvertiserDeposit, level: "self" },
@@ -287,7 +288,7 @@ app.post("/api/stripe/connect-onboard", async (req, res) => {
 
   const db = readDB();
   const user = db.users[req.userId];
-  if (!user || user.role !== "user") return res.status(403).json({ error: "Only user accounts can set up payouts." });
+  if (!user || (user.role !== "user" && user.role !== "advertiser")) return res.status(403).json({ error: "Only user or advertiser accounts can set up payouts." });
 
   try {
     let accountId = user.stripeConnectAccountId;
