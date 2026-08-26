@@ -23,6 +23,20 @@ package.json      Root scripts (build client, start server)
 
 ## Since the last build
 
+- **Wishlist demand signal for advertisers** — one of the ideas from the
+  earlier "what should we add" list, now built. Each product on the
+  advertiser's Products page shows how many people have it wishlisted —
+  real market demand, not a guess. Deliberately count-only, never who —
+  same privacy principle as everywhere else in the social feature.
+  Verified this rigorously since it's genuinely new privacy-sensitive
+  surface area: checked the sanitized output for every role (advertiser,
+  regular user, admin, even logged-out) and confirmed no user identity
+  ever appears alongside the count, and confirmed the underlying data
+  store itself is never mutated by attaching the count. Also added the
+  same count as a small, honest social-proof line on the user-facing
+  Store ("12 people want this") — costs users nothing to show, since
+  it's the same safe aggregate number either way.
+
 - **Advertiser campaign analytics** — the agreed next feature. Each
   campaign card with real views now has a "View analytics" button
   showing attention pass rate, A/B variant comparison, viewer age range

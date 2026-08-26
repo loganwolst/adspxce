@@ -72,8 +72,21 @@ function sanitizeDB(db, viewerId) {
     ? db.transactions
     : db.transactions.filter((t) => t.userId === viewerId || t.advertiserId === viewerId);
 
+  // Aggregate demand signal — how many people want a product, never who.
+  // Safe to attach to every product regardless of viewer, same principle
+  // as every other count-only figure elsewhere (waitlist size, follower
+  // counts): the number is public, the identities behind it never are.
+  const wishlistCounts = {};
+  Object.values(db.users).forEach((u) => {
+    if (u.role !== "user") return;
+    (u.wishlist || []).forEach((pid) => { wishlistCounts[pid] = (wishlistCounts[pid] || 0) + 1; });
+  });
+  const products = Object.fromEntries(
+    Object.entries(db.products || {}).map(([id, p]) => [id, { ...p, wishlistCount: wishlistCounts[id] || 0 }])
+  );
+
   return {
-    ...db, users, orders, transactions, publicLedger: buildPublicLedger(db),
+    ...db, users, orders, transactions, products, publicLedger: buildPublicLedger(db),
     waitlistCount: Object.values(db.users).filter((u) => u.role === "user" && u.waitlisted).length,
     activeCampaignCount: Object.values(db.campaigns).filter((c) => c.status === "active").length,
     waitlistCapacity: waitlistCapacity(db),

@@ -1656,7 +1656,9 @@ function UserStore({ user, db, run, pushToast }) {
                 </div>
                 <div className="ad-card-title">{p.name}</div>
                 <div className="ad-card-desc">{p.description}</div>
-                <div className="muted" style={{ fontSize: 11.5, marginBottom: 8 }}>{p.stock} in stock</div>
+                <div className="muted" style={{ fontSize: 11.5, marginBottom: 8 }}>
+                  {p.stock} in stock{p.wishlistCount > 0 ? ` · ${p.wishlistCount} ${p.wishlistCount === 1 ? "person wants" : "people want"} this` : ""}
+                </div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                   <span className="ad-card-reward">{money(p.price)}</span>
                 </div>
@@ -2235,6 +2237,7 @@ function AdvertiserProducts({ adv, db, run, pushToast }) {
                 <div><span className="muted">Price</span> {money(p.price)}</div>
                 <div><span className="muted">Stock</span> {p.stock}</div>
                 <div><span className="muted">Category</span> {p.category}</div>
+                <div><span className="muted">Wishlisted by</span> {p.wishlistCount || 0}</div>
               </div>
               <div className="row-actions" style={{ marginTop: 10 }}>
                 <button
