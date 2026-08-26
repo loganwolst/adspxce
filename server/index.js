@@ -101,6 +101,14 @@ app.get("/api/lookup-code/:code", (req, res) => {
   res.json({ preview: { id: target.id, name: target.name, avatarDataUrl: target.avatarDataUrl || null } });
 });
 
+app.get("/api/campaign-analytics/:campaignId", (req, res) => {
+  if (!req.userId) return res.status(401).json({ error: "Please log in." });
+  const db = readDB();
+  const analytics = logic.getCampaignAnalytics(db, req.params.campaignId, req.userId);
+  if (analytics.error) return res.status(analytics.error.includes("own campaigns") ? 403 : 404).json(analytics);
+  res.json({ analytics });
+});
+
 app.get("/api/search", (req, res) => {
   if (!req.userId) return res.status(401).json({ error: "Please log in." });
   const q = (req.query.q || "").trim().toLowerCase();

@@ -2038,6 +2038,7 @@ function CampaignForm({ cfg, onSubmit }) {
 
 function AdvertiserCampaigns({ adv, db, run, pushToast }) {
   const [creating, setCreating] = useState(false);
+  const [analyticsFor, setAnalyticsFor] = useState(null);
   const campaigns = Object.values(db.campaigns).filter((c) => c.advertiserId === adv.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
   return (
@@ -2084,11 +2085,101 @@ function AdvertiserCampaigns({ adv, db, run, pushToast }) {
                 <div className="muted" style={{ fontSize: 11.5, marginTop: 8 }}>Untargeted — shown to all users</div>
               )}
               <div className="progress-track thin"><div className="progress-fill" style={{ width: `${Math.min(100, (c.spent / c.totalBudget) * 100)}%` }} /></div>
+              {c.views > 0 && (
+                <button className="btn-mini" style={{ marginTop: 10 }} onClick={() => setAnalyticsFor(c)}>
+                  <TrendingUp size={13} /> View analytics
+                </button>
+              )}
             </div>
           ))}
         </div>
       )}
+      {analyticsFor && <CampaignAnalyticsModal campaign={analyticsFor} onClose={() => setAnalyticsFor(null)} pushToast={pushToast} />}
     </AdvertiserGate>
+  );
+}
+
+function CampaignAnalyticsModal({ campaign, onClose, pushToast }) {
+  const [analytics, setAnalytics] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`/api/campaign-analytics/${campaign.id}`, { credentials: "include" });
+        const data = await res.json();
+        if (!res.ok) { pushToast(data.error || "Couldn't load analytics.", "error"); onClose(); return; }
+        setAnalytics(data.analytics);
+      } catch (e) {
+        pushToast("Couldn't reach the server.", "error");
+        onClose();
+      } finally {
+        setLoading(false);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [campaign.id]);
+
+  return (
+    <div className="modal-overlay" role="dialog" aria-modal="true" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
+        <div className="modal-head">
+          <div className="modal-eyebrow">Analytics — {campaign.name}</div>
+          <button className="icon-btn" onClick={onClose} aria-label="Close"><X size={16} /></button>
+        </div>
+        {loading || !analytics ? (
+          <div className="loading-mark" style={{ fontSize: 14 }}>Loading…</div>
+        ) : (
+          <>
+            <div className="stat-grid">
+              <StatCard label="Total views" value={analytics.totalViews} tone="#52E3C2" />
+              <StatCard label="Attention pass rate" value={analytics.attentionPassRate !== null ? `${analytics.attentionPassRate}%` : "—"} />
+            </div>
+
+            {analytics.hasVariantB && (
+              <div className="card">
+                <div className="card-title">Variant A vs B</div>
+                <table className="table">
+                  <thead><tr><th>Variant</th><th>Views</th><th>Pass rate</th></tr></thead>
+                  <tbody>
+                    <tr><td>A</td><td>{analytics.variantSummary.A.views}</td><td>{analytics.variantSummary.A.passRate !== null ? `${analytics.variantSummary.A.passRate}%` : "—"}</td></tr>
+                    <tr><td>B</td><td>{analytics.variantSummary.B.views}</td><td>{analytics.variantSummary.B.passRate !== null ? `${analytics.variantSummary.B.passRate}%` : "—"}</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <div className="card">
+              <div className="card-title">Viewer age range</div>
+              {Object.entries(analytics.ageBreakdown).every(([, v]) => v === 0) ? (
+                <p className="muted" style={{ fontSize: 12.5 }}>No age data available for these viewers yet.</p>
+              ) : (
+                <table className="table">
+                  <tbody>
+                    {Object.entries(analytics.ageBreakdown).filter(([, v]) => v > 0).map(([range, count]) => (
+                      <tr key={range}><td>{range}</td><td className="mono">{count}</td></tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {analytics.targetedInterests.length > 0 && (
+              <div className="card">
+                <div className="card-title">Interest targeting match</div>
+                <p className="muted" style={{ fontSize: 12.5, marginBottom: 10 }}>
+                  Targeting: {analytics.targetedInterests.join(", ")}
+                </p>
+                <div className="stat-grid">
+                  <StatCard label="Matched interest" value={analytics.interestOverlapCount} tone="#52E3C2" />
+                  <StatCard label="No overlap" value={analytics.interestNoOverlapCount} />
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
   );
 }
 

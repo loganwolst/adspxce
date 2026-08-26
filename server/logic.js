@@ -424,6 +424,67 @@ function doRemoveFollower(db, { userId, followerId }) {
   return { message: "Removed." };
 }
 
+/* ============================== CAMPAIGN ANALYTICS ============================== */
+// Aggregate-only, by the same principle as getPublicProfile below: an
+// advertiser gets counts and rates, never any individual viewer's identity.
+// This has to be computed server-side because an advertiser's own client
+// state never contains other users' full records at all.
+
+const AGE_RANGES_SERVER = ["18-24", "25-34", "35-44", "45-54", "55+"];
+
+function getCampaignAnalytics(db, campaignId, advertiserId) {
+  const campaign = db.campaigns[campaignId];
+  if (!campaign) return { error: "Campaign not found." };
+  if (campaign.advertiserId !== advertiserId) return { error: "You can only view analytics for your own campaigns." };
+
+  const views = db.transactions.filter((t) => t.type === "AD_VIEW" && t.campaignId === campaignId);
+  const totalViews = views.length;
+  const passed = views.filter((v) => v.attentionPassed !== false).length;
+  const attentionPassRate = totalViews > 0 ? round2((passed / totalViews) * 100) : null;
+
+  const variantStats = { A: { views: 0, passed: 0 }, B: { views: 0, passed: 0 } };
+  views.forEach((v) => {
+    const variant = v.variant === "B" ? "B" : "A";
+    variantStats[variant].views++;
+    if (v.attentionPassed !== false) variantStats[variant].passed++;
+  });
+  const variantSummary = Object.fromEntries(
+    Object.entries(variantStats).map(([k, v]) => [k, {
+      views: v.views,
+      passRate: v.views > 0 ? round2((v.passed / v.views) * 100) : null,
+    }])
+  );
+
+  const ageBreakdown = {};
+  AGE_RANGES_SERVER.forEach((r) => { ageBreakdown[r] = 0; });
+  ageBreakdown["Not set"] = 0;
+  let interestOverlapCount = 0;
+  let interestNoOverlapCount = 0;
+  const targetInterests = new Set(campaign.interestTags || []);
+
+  views.forEach((v) => {
+    const viewer = db.users[v.userId];
+    if (!viewer) return;
+    const ageRange = (viewer.profile && viewer.profile.ageRange) || "Not set";
+    if (ageBreakdown[ageRange] === undefined) ageBreakdown["Not set"]++; else ageBreakdown[ageRange]++;
+    const viewerInterests = (viewer.profile && viewer.profile.interests) || [];
+    if (targetInterests.size === 0) return; // untargeted campaign — overlap doesn't apply
+    const hasOverlap = viewerInterests.some((i) => targetInterests.has(i));
+    if (hasOverlap) interestOverlapCount++; else interestNoOverlapCount++;
+  });
+
+  return {
+    totalViews,
+    attentionPassRate,
+    variantSummary,
+    hasVariantB: !!campaign.variantB,
+    ageBreakdown,
+    targetedInterests: [...targetInterests],
+    interestOverlapCount,
+    interestNoOverlapCount,
+  };
+}
+
 // The single source of truth for what a given viewer is allowed to see of
 // someone else's profile — deliberately separate from sanitizeDB, since
 // that function is for your OWN full state, not a narrow, safe view of
@@ -963,5 +1024,6 @@ module.exports = {
   doAdmitFromWaitlist, doAdmitWaitlistBatch, waitlistCapacity, admittedUserCount, autoAdmitFromWaitlist,
   doSetAvatar, doSetProfileVisibility, doToggleWishlist, doFollowAccount, doFollowByCode,
   doUnfollowAccount, doApproveFollowRequest, doDenyFollowRequest, doRemoveFollower, getPublicProfile,
+  getCampaignAnalytics,
   doMarkNotificationRead, doMarkAllNotificationsRead,
 };

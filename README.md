@@ -23,6 +23,18 @@ package.json      Root scripts (build client, start server)
 
 ## Since the last build
 
+- **Advertiser campaign analytics** — the agreed next feature. Each
+  campaign card with real views now has a "View analytics" button
+  showing attention pass rate, A/B variant comparison, viewer age range
+  breakdown, and how many viewers actually matched the campaign's
+  interest targeting. Computed server-side and aggregate-only, by the
+  same principle as the social-profile privacy work — an advertiser
+  gets counts and rates, never any individual viewer's identity.
+  Verified this boundary directly: one advertiser genuinely cannot pull
+  another's campaign analytics, and confirmed no user identity appears
+  anywhere in a real analytics response, even when checking the raw
+  JSON for it.
+
 - **Fixed a real gap in Admin's "Total platform revenue"** — genuinely
   good catch. Referral and loyalty bonuses credit user balances
   directly but were never actually subtracted from revenue anywhere,
