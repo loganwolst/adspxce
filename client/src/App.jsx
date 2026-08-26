@@ -27,6 +27,19 @@ const AGE_RANGES = ["18-24", "25-34", "35-44", "45-54", "55+"];
 const uid = (p) => `${p}_${Math.random().toString(36).slice(2, 9)}${Date.now().toString(36).slice(-4)}`;
 const todayStr = () => new Date().toISOString().slice(0, 10);
 const round2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
+
+// Without this, a touch-drag intended for a modal can "leak through" to the
+// page behind it on mobile, especially once the modal's own content is
+// taller than the screen — the exact bug reported with the ad-view
+// verification challenge. Locks the real page while any modal using it is
+// open, restores it the moment that modal unmounts.
+function useBodyScrollLock() {
+  useEffect(() => {
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = previous; };
+  }, []);
+}
 const money = (n) => `£${round2(n || 0).toFixed(2)}`;
 const fmtDate = (iso) => {
   try { return new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }); }
@@ -140,6 +153,7 @@ function HumanVerifyChallenge({ onPass }) {
 }
 
 function AdViewerModal({ campaign, variant, rewardAmount, onClose, onComplete }) {
+  useBodyScrollLock();
   const displayTitle = variant === "B" && campaign.variantB ? campaign.variantB.adTitle : campaign.adTitle;
   const displayContent = variant === "B" && campaign.variantB ? campaign.variantB.content : campaign.content;
   const [progress, setProgress] = useState(0);
@@ -1075,6 +1089,7 @@ function UserReferrals({ user, db }) {
 /* ============================== PROFILE (USER) =============================== */
 
 function ViewProfile({ targetId, db, run, pushToast, onClose }) {
+  useBodyScrollLock();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -1591,6 +1606,7 @@ function UserProfile({ user, db, run, pushToast }) {
 /* ============================== STORE (USER) =============================== */
 
 function CheckoutModal({ product, adv, maxBalance, onClose, onConfirm, savedAddress }) {
+  useBodyScrollLock();
   const [qty, setQty] = useState(1);
   const [addr, setAddr] = useState(savedAddress || { name: "", line1: "", line2: "", city: "", postcode: "", country: "United Kingdom" });
   const set = (k) => (e) => setAddr((a) => ({ ...a, [k]: e.target.value }));
@@ -1635,6 +1651,7 @@ function CheckoutModal({ product, adv, maxBalance, onClose, onConfirm, savedAddr
 }
 
 function GiftModal({ product, user, run, pushToast, onClose }) {
+  useBodyScrollLock();
   const [code, setCode] = useState("");
   const [recipient, setRecipient] = useState(null);
   const [looking, setLooking] = useState(false);
@@ -2218,6 +2235,7 @@ function AdvertiserCampaigns({ adv, db, run, pushToast }) {
 }
 
 function CampaignAnalyticsModal({ campaign, onClose, pushToast }) {
+  useBodyScrollLock();
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
 

@@ -23,6 +23,20 @@ package.json      Root scripts (build client, start server)
 
 ## Since the last build
 
+- **Fixed a genuinely blocking bug: the human verification challenge
+  couldn't be completed on mobile** — a real, well-known class of mobile
+  bug. No modal in the app ever locked the page behind it from
+  scrolling while open, so a touch-drag meant for the modal's own
+  content could "leak through" to the page behind it instead — exactly
+  what was happening once the verification challenge made the ad-view
+  modal taller than the screen. The modal already had correct internal
+  scroll behaviour; it just had no way to reliably receive the touch
+  gesture in the first place, since the background was equally
+  scrollable. Fixed with a proper, reusable scroll-lock applied to
+  every modal in the app, not just this one — checkout, gift, profile
+  view, and campaign analytics were all carrying the same silent risk
+  even though nobody had reported it there yet.
+
 - **Turning the waitlist toggle off now automatically clears anyone
   currently stuck waiting**, not just future signups — reasoned through
   directly: if the whole point of the toggle is "nobody should be
