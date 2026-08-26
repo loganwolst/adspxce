@@ -23,6 +23,16 @@ package.json      Root scripts (build client, start server)
 
 ## Since the last build
 
+- **Turning the waitlist toggle off now automatically clears anyone
+  currently stuck waiting**, not just future signups — reasoned through
+  directly: if the whole point of the toggle is "nobody should be
+  gated right now," leaving people who registered earlier stuck while
+  brand new signups sail through freely doesn't actually match that
+  intent. Verified this precisely: a real backlog gets cleared the
+  moment the toggle flips off, an unrelated config save (multiplier,
+  CPV, anything else) never falsely triggers the sweep, and toggling
+  on-then-off again with nobody waiting doesn't error.
+
 - **Added a way to cancel a follow request you sent by mistake** —
   a real gap, good catch. There was only ever a way for the *target* to
   approve or deny a request; the person who sent it had no way to

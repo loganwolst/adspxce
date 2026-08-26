@@ -794,7 +794,15 @@ function doUpdateConfig(db, { patch }) {
   if (patch.waitlistSafetyMultiplier !== undefined && patch.waitlistSafetyMultiplier <= 0) {
     return { error: "Safety multiplier must be greater than zero." };
   }
+  const turningWaitlistOff = db.config.waitlistEnabled && patch.waitlistEnabled === false;
   db.config = { ...db.config, ...patch, membership: patch.membership };
+  if (turningWaitlistOff) {
+    // Turning the gate off should mean nobody is currently gated — not just
+    // future signups. Leaving already-waitlisted people stuck would mean
+    // someone who registered earlier is treated worse than someone who
+    // registers after this exact moment, which doesn't match the intent.
+    waitlistedUsersOldestFirst(db).forEach((u) => { u.waitlisted = false; });
+  }
   autoAdmitFromWaitlist(db); // the ratio itself changing can also increase capacity
   return { message: "Platform configuration saved." };
 }
