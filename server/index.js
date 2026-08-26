@@ -71,6 +71,7 @@ const ACTIONS = {
   SET_PRODUCT_STATUS: { fn: logic.doSetProductStatus, level: "self" },
   ADMIN_SET_PRODUCT_STATUS: { fn: logic.doAdminSetProductStatus, level: "admin" },
   RESTOCK_PRODUCT: { fn: logic.doRestockProduct, level: "self" },
+  GIFT_PRODUCT: { fn: logic.doGiftProduct, level: "self" },
   PURCHASE_PRODUCT: { fn: logic.doPurchaseProduct, level: "self" },
   SET_ORDER_STATUS: { fn: logic.doSetOrderStatus, level: "self" },
   UPDATE_PROFILE: { fn: logic.doUpdateProfile, level: "self" },

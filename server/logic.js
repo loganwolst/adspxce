@@ -845,6 +845,47 @@ function doRestockProduct(db, { userId, productId, addQty }) {
   return { message: `Added ${qty} units of stock.` };
 }
 
+// The gifter pays and picks the product; the recipient's own saved address
+// is used server-side to fulfil it — never returned to the gifter's client
+// in any response, at any point. If the recipient has never saved an
+// address (never purchased before), we block rather than guess — a known,
+// deliberate scope limit, not an oversight.
+function doGiftProduct(db, { userId, recipientId, productId, quantity }) {
+  const gifter = db.users[userId];
+  const recipient = db.users[recipientId];
+  const product = db.products[productId];
+  if (!recipient || recipient.role !== "user") return { error: "Recipient not found." };
+  if (recipientId === userId) return { error: "Use \"Buy with wallet\" to purchase for yourself." };
+  if (!product || product.status !== "active") return { error: "This product isn't available right now." };
+  const adv = db.users[product.advertiserId];
+  if (!adv || adv.advertiserStatus !== "approved") return { error: "This store is currently unavailable." };
+  const qty = parseInt(quantity, 10);
+  if (!(qty > 0)) return { error: "Enter a valid quantity." };
+  if (qty > product.stock) return { error: "Not enough stock available." };
+  if (!recipient.savedAddress) return { error: "This person hasn't saved a shipping address yet — they'll need to make a purchase of their own first before they can receive a gift." };
+  const total = round2(product.price * qty);
+  if (total > gifter.balance) return { error: "Insufficient wallet balance for this gift." };
+
+  gifter.balance = round2(gifter.balance - total);
+  product.stock = product.stock - qty;
+  adv.advertiserBalance = round2(adv.advertiserBalance + total);
+
+  const orderId = uid("order");
+  db.orders[orderId] = {
+    id: orderId, userId: recipientId, advertiserId: product.advertiserId, productId,
+    productName: product.name, price: product.price, quantity: qty, total,
+    shippingAddress: recipient.savedAddress, status: "pending", carrier: null, trackingNumber: null,
+    createdAt: nowISO(), updatedAt: nowISO(), giftedBy: userId, giftedByName: gifter.name, recipientName: recipient.name,
+  };
+  db.transactions.unshift({
+    id: uid("txn"), type: "GIFT_PURCHASE", status: "COMPLETED", timestamp: nowISO(),
+    userId: recipientId, advertiserId: product.advertiserId, productId, orderId, amount: total,
+    giftedBy: userId, giftedByName: gifter.name, recipientName: recipient.name,
+  });
+  pushNotification(recipient, "gift_received", `${gifter.name} sent you a gift: ${product.name}.`, orderId);
+  return { message: `Gift sent — ${recipient.name} will receive ${product.name}.` };
+}
+
 function doPurchaseProduct(db, { userId, productId, quantity, shippingAddress }) {
   const user = db.users[userId];
   const product = db.products[productId];
@@ -1074,7 +1115,7 @@ module.exports = {
   doRegister, doCompleteView, doRequestWithdrawal, doResolveWithdrawal, doUpgradeMembership, doRequestAdvertiserWithdrawal,
   doAdvertiserSubscribe, doAdvertiserDeposit, doCreateCampaign, doSetCampaignStatus,
   doSetAdvertiserStatus, doSetUserFlag, doAdminDeleteUser, doUpdateConfig,
-  doCreateProduct, doSetProductStatus, doAdminSetProductStatus, doRestockProduct, doPurchaseProduct, doSetOrderStatus,
+  doCreateProduct, doSetProductStatus, doAdminSetProductStatus, doRestockProduct, doPurchaseProduct, doGiftProduct, doSetOrderStatus,
   doUpdateProfile, doSetMutePrefs, doDonate, computeTrustScore, doRecordStripeDeposit,
   doMarkWithdrawalTransferred, doFailRealWithdrawal, doSetStripeConnectAccount, doSetStripeConnectStatus,
   getWeekAnchor, distinctActiveDaysThisWeek, maybePayLoyaltyBonus,

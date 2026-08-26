@@ -1609,9 +1609,75 @@ function CheckoutModal({ product, adv, maxBalance, onClose, onConfirm, savedAddr
   );
 }
 
+function GiftModal({ product, user, run, pushToast, onClose }) {
+  const [code, setCode] = useState("");
+  const [recipient, setRecipient] = useState(null);
+  const [looking, setLooking] = useState(false);
+  const [sending, setSending] = useState(false);
+
+  const lookup = async () => {
+    if (!code.trim()) return;
+    setLooking(true);
+    setRecipient(null);
+    try {
+      const res = await fetch(`/api/lookup-code/${encodeURIComponent(code.trim())}`, { credentials: "include" });
+      const data = await res.json();
+      if (!res.ok) { pushToast(data.error || "No account found.", "error"); setLooking(false); return; }
+      if (data.preview.id === user.id) { pushToast("That's your own code — gift something to a friend instead.", "error"); setLooking(false); return; }
+      setRecipient(data.preview);
+    } catch (e) {
+      pushToast("Couldn't reach the server.", "error");
+    } finally {
+      setLooking(false);
+    }
+  };
+
+  const send = async () => {
+    if (!recipient) return;
+    setSending(true);
+    const r = await run('GIFT_PRODUCT', { recipientId: recipient.id, productId: product.id, quantity: 1 });
+    pushToast(r.message || r.error, r.error ? "error" : "success");
+    setSending(false);
+    if (!r.error) onClose();
+  };
+
+  return (
+    <div className="modal-overlay" role="dialog" aria-modal="true" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440 }}>
+        <div className="modal-head">
+          <div className="modal-eyebrow">Gift — {product.name}</div>
+          <button className="icon-btn" onClick={onClose} aria-label="Close"><X size={16} /></button>
+        </div>
+        <p className="muted" style={{ fontSize: 12.5 }}>
+          Enter their referral code — same code they'd share with you for referrals. It ships straight to
+          their own saved address; you'll never see it, and they'll never see what you paid.
+        </p>
+        <div className="inline-form">
+          <input className="input" placeholder="e.g. JORDAN1" value={code} onChange={(e) => setCode(e.target.value)} />
+          <button className="btn btn-ghost" type="button" onClick={lookup} disabled={looking}>{looking ? "Looking…" : "Find"}</button>
+        </div>
+        {recipient && (
+          <div className="follower-row" style={{ marginTop: 10 }}>
+            <div className="follower-row-info">
+              <Avatar dataUrl={recipient.avatarDataUrl} name={recipient.name} size={36} />
+              <span>{recipient.name}</span>
+            </div>
+          </div>
+        )}
+        {recipient && (
+          <button className="btn btn-primary btn-block" style={{ marginTop: 14 }} onClick={send} disabled={sending}>
+            <Gift size={15} /> {sending ? "Sending…" : `Send for ${money(product.price)}`}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function UserStore({ user, db, run, pushToast }) {
   const [query, setQuery] = useState("");
   const [checkoutProduct, setCheckoutProduct] = useState(null);
+  const [giftProduct, setGiftProduct] = useState(null);
 
   const products = Object.values(db.products || {}).filter((p) => {
     if (p.status !== "active" || p.stock <= 0) return false;
@@ -1663,10 +1729,20 @@ function UserStore({ user, db, run, pushToast }) {
                   <span className="ad-card-reward">{money(p.price)}</span>
                 </div>
                 <button className="btn btn-primary btn-block" onClick={() => setCheckoutProduct(p)}>Buy with wallet</button>
+                <button className="btn btn-ghost btn-block" style={{ marginTop: 6 }} onClick={() => setGiftProduct(p)}><Gift size={14} /> Send as a gift</button>
               </div>
             );
           })}
         </div>
+      )}
+      {giftProduct && (
+        <GiftModal
+          product={giftProduct}
+          user={user}
+          run={run}
+          pushToast={pushToast}
+          onClose={() => setGiftProduct(null)}
+        />
       )}
       {checkoutProduct && (
         <CheckoutModal
@@ -2893,6 +2969,10 @@ function describeTxn(t, db, viewerId) {
     case "STORE_PURCHASE":
       if (viewerIsAdvertiser) return { label: "Store sale", amount: `+${money(t.amount)}`, tone: "#52E3C2" };
       return { label: "Store purchase", amount: `-${money(t.amount)}`, tone: "#FF7A7A" };
+    case "GIFT_PURCHASE":
+      if (viewerIsAdvertiser) return { label: "Gift sale", amount: `+${money(t.amount)}`, tone: "#52E3C2" };
+      if (viewerId === t.giftedBy) return { label: `Gift sent to ${t.recipientName || "a friend"}`, amount: `-${money(t.amount)}`, tone: "#FF7A7A" };
+      return { label: `Gift from ${t.giftedByName || "a friend"}`, amount: "£0.00", tone: "#52E3C2" };
     case "STORE_REFUND":
       if (viewerIsAdvertiser) return { label: "Store sale reversed (refund)", amount: `-${money(t.amount)}`, tone: "#FF7A7A" };
       return { label: "Store order refunded", amount: `+${money(t.amount)}`, tone: "#52E3C2" };

@@ -70,7 +70,7 @@ function sanitizeDB(db, viewerId) {
   // with any identifying detail attached.
   const transactions = isAdmin
     ? db.transactions
-    : db.transactions.filter((t) => t.userId === viewerId || t.advertiserId === viewerId);
+    : db.transactions.filter((t) => t.userId === viewerId || t.advertiserId === viewerId || t.giftedBy === viewerId);
 
   // Aggregate demand signal — how many people want a product, never who.
   // Safe to attach to every product regardless of viewer, same principle

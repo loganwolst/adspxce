@@ -23,6 +23,21 @@ package.json      Root scripts (build client, start server)
 
 ## Since the last build
 
+- **Added gifting on the Store** — send a product to anyone by their
+  referral code, paid from your own balance, shipped to their own saved
+  address. The privacy guarantee was the whole point of the feature, so
+  it was tested directly rather than assumed: confirmed the recipient's
+  address never appears anywhere in the response or in the gifter's own
+  data, at any point. Also caught and fixed a subtler issue while
+  building it — since regular users never see each other's full
+  records, a gift transaction needed the gifter's and recipient's names
+  snapshotted as plain text (same pattern already used for campaign
+  names on ad-view transactions), otherwise each side's transaction
+  history would have shown a blank name for the other person. Currently
+  requires the recipient to have a saved address already (from a past
+  purchase of their own) — a known, deliberate scope limit, not an
+  oversight.
+
 - **Fixed a real gap found while preparing the FCA application**: a Store
   purchase correctly debited the buyer's balance, but the advertiser was
   never actually credited — a genuine unfinished piece of the money
