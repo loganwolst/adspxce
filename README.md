@@ -23,6 +23,23 @@ package.json      Root scripts (build client, start server)
 
 ## Since the last build
 
+- **Fixed Profile page overflow on mobile** — the actual cause: the
+  identity status pill can contain genuinely long text ("Not verified —
+  required to watch ads") that doesn't wrap by design, forcing the
+  whole header row wider than the screen. Fixed by stacking that row
+  vertically on mobile instead of trying to fit it in one line. Also
+  found and fixed the same class of risk in a couple of other spots
+  while in there — the followers/following list rows, and the 3-dot
+  menu dropdown, which could extend past the screen edge. Two more
+  defensive layers added on top: the site's 1.4x zoom (a deliberate
+  desktop preference) was compounding every width issue on an already
+  narrow screen, scaled back specifically on mobile only; and a
+  root-level safety net now prevents the whole page from ever shifting
+  sideways again, even from something not yet found. Every single one
+  of these fixes lives inside the same mobile-only media query as
+  before — confirmed directly, not assumed — so desktop is completely
+  unaffected.
+
 - **Split My Orders into Active/History tabs** — worth being clear
   about what this actually fixes: completed orders were never being
   deleted or hidden, every order stays in the data forever regardless

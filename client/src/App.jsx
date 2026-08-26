@@ -3498,6 +3498,20 @@ function GlobalStyle() {
            own contained horizontal scroll rather than letting the whole page
            scroll sideways, which is what was actually happening before. */
         .card:has(table) { overflow-x: auto; }
+        /* The identity pill's text can genuinely be long ("Not verified —
+           required to watch ads") and doesn't wrap by design on desktop —
+           on mobile that forces the whole header row wider than the screen.
+           Stacking vertically sidesteps the problem entirely rather than
+           trying to shrink text that needs to stay readable. */
+        .profile-header-row { flex-direction: column; align-items: flex-start; }
+        .profile-stats-row { flex-wrap: wrap; gap: 12px; }
+        .profile-menu-dropdown { right: 0; left: auto; max-width: calc(100vw - 40px); }
+        .follower-row { flex-wrap: wrap; gap: 8px; }
+        /* The 1.4x desktop zoom preference compounds every width issue on
+           an already-narrow screen — scaled back specifically on mobile,
+           desktop keeps its own zoom exactly as set. */
+        html { zoom: 1; }
+        .root { overflow-x: hidden; }
       }
       .sidebar {
         background: radial-gradient(320px 200px at 0% 0%, rgba(82,227,194,0.05), transparent 60%), var(--surface);
