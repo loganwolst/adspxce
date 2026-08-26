@@ -862,7 +862,7 @@ function doGiftProduct(db, { userId, recipientId, productId, quantity }) {
   const qty = parseInt(quantity, 10);
   if (!(qty > 0)) return { error: "Enter a valid quantity." };
   if (qty > product.stock) return { error: "Not enough stock available." };
-  if (!recipient.savedAddress) return { error: "This person hasn't saved a shipping address yet — they'll need to make a purchase of their own first before they can receive a gift." };
+  if (!recipient.savedAddress) return { error: "This person hasn't saved a shipping address yet — they'll need to add one on their Profile before they can receive a gift." };
   const total = round2(product.price * qty);
   if (total > gifter.balance) return { error: "Insufficient wallet balance for this gift." };
 
@@ -966,6 +966,25 @@ function doUpdateProfile(db, { userId, profile }) {
   const region = (profile?.region || "").slice(0, 80);
   user.profile = { interests, ageRange, region };
   return { message: "Profile updated — you may start seeing more relevant ads." };
+}
+
+// Lets a user set up a shipping address directly, without needing to have
+// made a purchase first — that dependency was backwards, since it meant
+// someone couldn't receive a gift until after they'd already bought
+// something themselves.
+function doSetSavedAddress(db, { userId, address }) {
+  const user = db.users[userId];
+  if (!user) return { error: "User not found." };
+  const required = ["name", "line1", "city", "postcode", "country"];
+  const cleaned = {};
+  for (const field of required) {
+    const value = (address?.[field] || "").trim();
+    if (!value) return { error: `Please fill in ${field === "line1" ? "address line 1" : field}.` };
+    cleaned[field] = value.slice(0, 120);
+  }
+  cleaned.line2 = (address?.line2 || "").trim().slice(0, 120);
+  user.savedAddress = cleaned;
+  return { message: "Shipping address saved." };
 }
 
 /* ============================== REFERRALS ================================== */
@@ -1116,7 +1135,7 @@ module.exports = {
   doAdvertiserSubscribe, doAdvertiserDeposit, doCreateCampaign, doSetCampaignStatus,
   doSetAdvertiserStatus, doSetUserFlag, doAdminDeleteUser, doUpdateConfig,
   doCreateProduct, doSetProductStatus, doAdminSetProductStatus, doRestockProduct, doPurchaseProduct, doGiftProduct, doSetOrderStatus,
-  doUpdateProfile, doSetMutePrefs, doDonate, computeTrustScore, doRecordStripeDeposit,
+  doUpdateProfile, doSetSavedAddress, doSetMutePrefs, doDonate, computeTrustScore, doRecordStripeDeposit,
   doMarkWithdrawalTransferred, doFailRealWithdrawal, doSetStripeConnectAccount, doSetStripeConnectStatus,
   getWeekAnchor, distinctActiveDaysThisWeek, maybePayLoyaltyBonus,
   doSetIdentitySession, doApplyIdentityResult, doClearIdentityFlag,

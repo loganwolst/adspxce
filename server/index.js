@@ -75,6 +75,7 @@ const ACTIONS = {
   PURCHASE_PRODUCT: { fn: logic.doPurchaseProduct, level: "self" },
   SET_ORDER_STATUS: { fn: logic.doSetOrderStatus, level: "self" },
   UPDATE_PROFILE: { fn: logic.doUpdateProfile, level: "self" },
+  SET_SAVED_ADDRESS: { fn: logic.doSetSavedAddress, level: "self" },
   SET_MUTE_PREFS: { fn: logic.doSetMutePrefs, level: "self" },
   DONATE: { fn: logic.doDonate, level: "self" },
 };

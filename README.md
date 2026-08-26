@@ -23,6 +23,17 @@ package.json      Root scripts (build client, start server)
 
 ## Since the last build
 
+- **Fixed the gift feature's backwards address requirement** — good
+  catch. It previously required a recipient to have made a purchase
+  before they could ever receive a gift, which meant someone couldn't
+  get a gift sent to them until after they'd already bought something
+  themselves. Added a proper way to save a shipping address directly
+  on Profile, no purchase needed. Also fixed the now-stale error
+  message that was still telling people to "make a purchase first" —
+  it now correctly points them to Profile instead. Verified directly
+  that gifting works for someone who only ever saved an address this
+  way and never purchased anything.
+
 - **Fixed a real gap in the identity webhook's own logging**, found
   while trying to diagnose whether it was actually working — it only
   logged on failure, never on success or on receipt, so "no logs found"

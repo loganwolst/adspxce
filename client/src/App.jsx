@@ -1248,6 +1248,7 @@ function UserProfile({ user, db, run, pushToast }) {
   const [ageRange, setAgeRange] = useState(existing.ageRange || "");
   const [region, setRegion] = useState(existing.region || "");
   const [mutedInterests, setMutedInterests] = useState(user.mutedInterests || []);
+  const [address, setAddress] = useState(user.savedAddress || { name: "", line1: "", line2: "", city: "", postcode: "", country: "United Kingdom" });
 
   const [socialTab, setSocialTab] = useState("wishlist");
   const [findCode, setFindCode] = useState("");
@@ -1387,6 +1388,12 @@ function UserProfile({ user, db, run, pushToast }) {
   const unmuteAdvertiser = (advId) => {
     const next = (user.mutedAdvertisers || []).filter((id) => id !== advId);
     saveMutePrefs(mutedInterests, next);
+  };
+
+  const saveAddress = async (e) => {
+    e.preventDefault();
+    const r = await run('SET_SAVED_ADDRESS', { address });
+    pushToast(r.message || r.error, r.error ? "error" : "success");
   };
 
   return (
@@ -1558,6 +1565,30 @@ function UserProfile({ user, db, run, pushToast }) {
           </>
         )}
       </div>
+
+      <form className="card" onSubmit={saveAddress}>
+        <div className="card-title">Shipping address</div>
+        <p className="muted" style={{ marginTop: -8, marginBottom: 12, fontSize: 12.5 }}>
+          Save this once and you're set — no need to buy something yourself first before a friend can send you a gift.
+        </p>
+        <div className="form-row">
+          <label>Full name<input className="input" value={address.name} onChange={(e) => setAddress((a) => ({ ...a, name: e.target.value }))} required /></label>
+        </div>
+        <div className="form-row">
+          <label>Address line 1<input className="input" value={address.line1} onChange={(e) => setAddress((a) => ({ ...a, line1: e.target.value }))} required /></label>
+        </div>
+        <div className="form-row">
+          <label>Address line 2 (optional)<input className="input" value={address.line2} onChange={(e) => setAddress((a) => ({ ...a, line2: e.target.value }))} /></label>
+        </div>
+        <div className="form-row">
+          <label>City<input className="input" value={address.city} onChange={(e) => setAddress((a) => ({ ...a, city: e.target.value }))} required /></label>
+          <label>Postcode<input className="input" value={address.postcode} onChange={(e) => setAddress((a) => ({ ...a, postcode: e.target.value }))} required /></label>
+        </div>
+        <div className="form-row">
+          <label>Country<input className="input" value={address.country} onChange={(e) => setAddress((a) => ({ ...a, country: e.target.value }))} required /></label>
+        </div>
+        <button className="btn btn-primary" type="submit" style={{ marginTop: 12 }}><Check size={15} /> Save address</button>
+      </form>
       )}
     </div>
   );
