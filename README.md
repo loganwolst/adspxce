@@ -23,6 +23,18 @@ package.json      Root scripts (build client, start server)
 
 ## Since the last build
 
+- **Added a way to cancel a follow request you sent by mistake** —
+  a real gap, good catch. There was only ever a way for the *target* to
+  approve or deny a request; the person who sent it had no way to
+  withdraw it. Added the missing server-side function (the mirror of
+  the existing deny action, just from the other side) and fixed the
+  "Request pending" button, which was previously just a disabled label
+  with nothing behind it — it's now a real, working cancel action.
+  Tested the actual security boundary directly: confirmed you can only
+  ever cancel your own pending request, never someone else's, and that
+  cancelling doesn't block you from sending a fresh request again later
+  if you change your mind back.
+
 - **Fixed mashed-up text on the Membership page's supply note** — the
   actual cause: `.inline-warning` uses `display: flex` with no wrap
   property, which is fine for the short one-line status messages it

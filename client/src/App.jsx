@@ -1105,6 +1105,11 @@ function ViewProfile({ targetId, db, run, pushToast, onClose }) {
     pushToast(r.message || r.error, r.error ? "error" : "success");
     if (!r.error) setProfile((p) => ({ ...p, isFollowedByViewer: false, wishlist: null }));
   };
+  const cancelRequest = async () => {
+    const r = await run('CANCEL_FOLLOW_REQUEST', { targetId });
+    pushToast(r.message || r.error, r.error ? "error" : "success");
+    if (!r.error) setProfile((p) => ({ ...p, hasPendingRequestFromViewer: false }));
+  };
 
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true" onClick={onClose}>
@@ -1132,7 +1137,7 @@ function ViewProfile({ targetId, db, run, pushToast, onClose }) {
               profile.isFollowedByViewer ? (
                 <button className="btn btn-ghost btn-block" onClick={unfollow}>Following — tap to unfollow</button>
               ) : profile.hasPendingRequestFromViewer ? (
-                <button className="btn btn-ghost btn-block" disabled>Request pending</button>
+                <button className="btn btn-ghost btn-block" onClick={cancelRequest}>Request pending — tap to cancel</button>
               ) : (
                 <button className="btn btn-primary btn-block" onClick={follow}><UserPlus size={14} /> {profile.role === "advertiser" ? "Follow" : "Request to follow"}</button>
               )

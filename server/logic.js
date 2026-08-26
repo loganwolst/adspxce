@@ -417,6 +417,17 @@ function doDenyFollowRequest(db, { userId, requesterId }) {
   return { message: "Request denied." };
 }
 
+// The mirror of doDenyFollowRequest — the REQUESTER withdrawing their own
+// pending request, rather than the target denying it. Previously there
+// was simply no way to undo sending one by mistake.
+function doCancelFollowRequest(db, { userId, targetId }) {
+  const target = db.users[targetId];
+  if (!target) return { error: "Account not found." };
+  if (!(target.followRequestsReceived || []).includes(userId)) return { error: "No pending request to cancel." };
+  target.followRequestsReceived = target.followRequestsReceived.filter((id) => id !== userId);
+  return { message: "Follow request cancelled." };
+}
+
 function doRemoveFollower(db, { userId, followerId }) {
   const follower = db.users[followerId];
   if (!follower) return { error: "Account not found." };
@@ -1141,7 +1152,7 @@ module.exports = {
   doSetIdentitySession, doApplyIdentityResult, doClearIdentityFlag,
   doAdmitFromWaitlist, doAdmitWaitlistBatch, waitlistCapacity, admittedUserCount, autoAdmitFromWaitlist,
   doSetAvatar, doSetProfileVisibility, doToggleWishlist, doFollowAccount, doFollowByCode,
-  doUnfollowAccount, doApproveFollowRequest, doDenyFollowRequest, doRemoveFollower, getPublicProfile,
+  doUnfollowAccount, doApproveFollowRequest, doDenyFollowRequest, doCancelFollowRequest, doRemoveFollower, getPublicProfile,
   getCampaignAnalytics,
   doMarkNotificationRead, doMarkAllNotificationsRead,
 };

@@ -62,6 +62,7 @@ const ACTIONS = {
   UNFOLLOW_ACCOUNT: { fn: logic.doUnfollowAccount, level: "self" },
   APPROVE_FOLLOW_REQUEST: { fn: logic.doApproveFollowRequest, level: "self" },
   DENY_FOLLOW_REQUEST: { fn: logic.doDenyFollowRequest, level: "self" },
+  CANCEL_FOLLOW_REQUEST: { fn: logic.doCancelFollowRequest, level: "self" },
   REMOVE_FOLLOWER: { fn: logic.doRemoveFollower, level: "self" },
   MARK_NOTIFICATION_READ: { fn: logic.doMarkNotificationRead, level: "self" },
   MARK_ALL_NOTIFICATIONS_READ: { fn: logic.doMarkAllNotificationsRead, level: "self" },
