@@ -23,6 +23,15 @@ package.json      Root scripts (build client, start server)
 
 ## Since the last build
 
+- **Fixed a real gap in the identity webhook's own logging**, found
+  while trying to diagnose whether it was actually working — it only
+  logged on failure, never on success or on receipt, so "no logs found"
+  was genuinely ambiguous between "nothing arrived" and "it worked
+  perfectly and had nothing to report." Now logs at every stage:
+  when an event is received, if no matching user is found for the
+  session (a previously-silent failure case), and on success. The next
+  real test will give an unambiguous answer instead of a guess.
+
 - **Fixed identity verification not resolving automatically** — a real
   gap, found from a genuinely good question about why an account
   (Jack Buckley) was stuck on "Processing." Confirmed directly: no

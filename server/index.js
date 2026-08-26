@@ -290,9 +290,13 @@ app.post("/api/stripe/webhook", async (req, res) => {
   }
 
   if (event.type === "identity.verification_session.verified" || event.type === "identity.verification_session.requires_input") {
+    console.log(`Stripe Identity webhook received: ${event.type} for session ${event.data.object.id}`);
     const sessionObj = event.data.object;
     const preDb = readDB();
     const user = Object.values(preDb.users).find((u) => u.identityVerificationSessionId === sessionObj.id);
+    if (!user) {
+      console.error(`Stripe Identity webhook: no user found with session id ${sessionObj.id} — this session may predate the current database, or the session id wasn't saved correctly at verification-start time.`);
+    }
     if (user) {
       try {
         let status = "processing";
@@ -312,6 +316,7 @@ app.post("/api/stripe/webhook", async (req, res) => {
           status = "failed";
         }
         await withDB((draft) => logic.doApplyIdentityResult(draft, { userId: user.id, status, firstName, lastName, dob }));
+        console.log(`Stripe Identity webhook: successfully applied status "${status}" to user ${user.id}`);
       } catch (e) {
         console.error("Stripe Identity webhook processing failed:", e.message);
       }
