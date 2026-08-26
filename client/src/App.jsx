@@ -3626,7 +3626,7 @@ function GlobalStyle() {
       .verify-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
       .verify-cell { aspect-ratio: 1; border: 1px solid var(--line); background: var(--surface-2); border-radius: 10px; font-size: 24px; display: flex; align-items: center; justify-content: center; }
       .verify-cell.active { border-color: var(--accent); background: var(--accent-soft); box-shadow: inset 0 0 0 2px var(--accent); }
-      .inline-warning { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--danger); background: var(--danger-soft); padding: 8px 10px; border-radius: 8px; }
+      .inline-warning { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 12px; color: var(--danger); background: var(--danger-soft); padding: 8px 10px; border-radius: 8px; }
       .progress-track { height: 8px; background: var(--line); border-radius: 100px; overflow: hidden; }
       .progress-track.thin { height: 5px; margin-top: 8px; }
       .progress-fill { height: 100%; background: var(--accent); transition: width .1s linear; }

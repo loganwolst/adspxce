@@ -23,6 +23,17 @@ package.json      Root scripts (build client, start server)
 
 ## Since the last build
 
+- **Fixed mashed-up text on the Membership page's supply note** — the
+  actual cause: `.inline-warning` uses `display: flex` with no wrap
+  property, which is fine for the short one-line status messages it
+  was originally built for, but breaks a genuine multi-sentence
+  paragraph like this one. Worth noting this fix is *not* scoped to
+  the mobile media query like the recent Profile/Orders fixes were —
+  it's a real missing-property bug, safe at every screen size, since
+  wrapping only ever activates when content doesn't already fit on one
+  line. Checked every other place this class is used first — all short
+  status messages, none relying on the no-wrap behavior for anything.
+
 - **Fixed Profile page overflow on mobile** — the actual cause: the
   identity status pill can contain genuinely long text ("Not verified —
   required to watch ads") that doesn't wrap by design, forcing the
