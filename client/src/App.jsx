@@ -680,7 +680,6 @@ function rankCampaignsForUser(liveCampaigns, user, db) {
 function UserAds({ user, db, run, pushToast }) {
   const [active, setActive] = useState(null);
   const [activeVariant, setActiveVariant] = useState("A");
-  const [startingIdentity, setStartingIdentity] = useState(false);
   const cfg = db.config;
   const limit = cfg.membership[user.membership].views;
   const used = effectiveDailyViews(user);
@@ -691,17 +690,10 @@ function UserAds({ user, db, run, pushToast }) {
   const hiddenCount = liveCampaigns.length - ranked.length;
   const profileIncomplete = !profile.ageRange && profile.interests.length === 0;
 
-  const startIdentityVerification = async () => {
-    setStartingIdentity(true);
-    try {
-      const res = await fetch("/api/stripe/identity-start", { method: "POST", credentials: "include" });
-      const data = await res.json();
-      if (!res.ok || data.error) { pushToast(data.error || "Couldn't start verification.", "error"); setStartingIdentity(false); return; }
-      window.location.href = data.url;
-    } catch (err) {
-      pushToast("Couldn't reach the verification server.", "error");
-      setStartingIdentity(false);
-    }
+  const goToProfile = () => {
+    const params = new URLSearchParams(window.location.search);
+    params.set("page", "profile");
+    window.location.href = `${window.location.pathname}?${params.toString()}`;
   };
 
   const complete = async (campaignId, verification, variant) => {
@@ -734,15 +726,10 @@ function UserAds({ user, db, run, pushToast }) {
             genuine for advertisers, not just numbers. Takes a couple of minutes, using Stripe's ID check. We
             never see or store your ID document, only the verified result.
           </p>
-          {user.identityVerificationStatus === "processing" ? (
-            <p className="muted" style={{ fontSize: 12.5 }}>
-              Your verification is already in progress — head to <strong>Profile</strong> to check its status or finish it up.
-            </p>
-          ) : (
-            <button className="btn btn-primary" onClick={startIdentityVerification} disabled={startingIdentity}>
-              {startingIdentity ? "Redirecting…" : user.identityVerificationStatus === "failed" ? "Try again" : "Verify my identity"}
-            </button>
-          )}
+          <button className="btn btn-primary" onClick={goToProfile}>
+            {user.identityVerificationStatus === "processing" ? "Check status on your Profile" : user.identityVerificationStatus === "failed" ? "Try again on your Profile" : "Verify on your Profile"}
+          </button>
+
         </div>
       </div>
     );
@@ -1565,7 +1552,9 @@ function UserProfile({ user, db, run, pushToast }) {
           </>
         )}
       </div>
+      )}
 
+      {aboutOpen && (
       <form className="card" onSubmit={saveAddress}>
         <div className="card-title">Shipping address</div>
         <p className="muted" style={{ marginTop: -8, marginBottom: 12, fontSize: 12.5 }}>

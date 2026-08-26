@@ -23,6 +23,29 @@ package.json      Root scripts (build client, start server)
 
 ## Since the last build
 
+- **Fixed a real build-breaking error from the last change** — the
+  Shipping address form was inserted as a second sibling inside a
+  `{condition && (...)}` block that could only ever hold one, which is
+  invalid JSX. This is exactly the kind of error my own bracket-balance
+  check doesn't catch, since brackets were still perfectly matched —
+  only full JSX grammar catches it. Confirmed the fix properly this
+  time using the actual esbuild tool Railway's build uses, not just
+  bracket-counting — including deliberately testing the same bug
+  pattern on throwaway code first, to confirm the check genuinely
+  fails on it before trusting that it passes on the real fix.
+
+- **Verification now always resolves on the page you're looking at** —
+  a real UX idea, and a good one. Removed the separate "verify now"
+  button from View Ads entirely — it now just points people to Profile,
+  which is the one true place verification lives. The underlying
+  technical piece that actually makes this reliable: the return trip
+  from Stripe now always lands back on Profile specifically (it never
+  specified a destination page before, so it silently fell back to
+  Dashboard) — so the automatic check-on-return genuinely fires every
+  time, not just when someone happened to already be on the right page.
+  Confirmed no leftover duplicate code from the removal — Profile keeps
+  its own independent implementation, untouched.
+
 - **Fixed the gift feature's backwards address requirement** — good
   catch. It previously required a recipient to have made a purchase
   before they could ever receive a gift, which meant someone couldn't

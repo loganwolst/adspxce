@@ -403,7 +403,7 @@ app.post("/api/stripe/identity-start", async (req, res) => {
       type: "document",
       metadata: { userId: req.userId },
       options: { document: { require_matching_selfie: true } },
-      return_url: `${baseUrl}/?identity=return`,
+      return_url: `${baseUrl}/?identity=return&page=profile`,
     });
     await withDB((draft) => logic.doSetIdentitySession(draft, { userId: req.userId, sessionId: session.id }));
     res.json({ url: session.url });
