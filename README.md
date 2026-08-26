@@ -23,6 +23,19 @@ package.json      Root scripts (build client, start server)
 
 ## Since the last build
 
+- **Reworked mobile navigation** — two real fixes, both scoped to
+  entirely inside the existing mobile-only media query, so desktop is
+  unaffected by construction, not just by assumption (verified this
+  directly rather than assuming — every changed CSS rule lives inside
+  the same `@media (max-width: 760px)` block, or is permanently hidden
+  by default outside it). Tapping a nav item on mobile now shows that
+  page full-screen with a back button, instead of the old horizontal
+  strip you had to scroll back up to reach. Also fixed the actual
+  horizontal-scroll problem — wide tables now get their own contained
+  scroll area instead of the whole page scrolling sideways, using a
+  `:has()` selector so only cards that genuinely contain a table are
+  affected, nothing else.
+
 - **Fixed a real build-breaking error from the last change** — the
   Shipping address form was inserted as a second sibling inside a
   `{condition && (...)}` block that could only ever hold one, which is

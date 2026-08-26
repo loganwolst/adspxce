@@ -3122,12 +3122,22 @@ function Shell({ user, db, run, pushToast, onLogout }) {
     return fromUrl && NAV[user.role].some((n) => n.key === fromUrl) ? fromUrl : "dashboard";
   });
   const nav = NAV[user.role];
+  // Only ever changes what's VISIBLE on a mobile-width screen — the CSS
+  // rules that respond to this are entirely inside the existing mobile
+  // media query, so this has zero effect on desktop layout at any width
+  // above that breakpoint, regardless of its value.
+  const [mobileShowingNav, setMobileShowingNav] = useState(true);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     params.set("page", page);
     window.history.replaceState({}, "", `${window.location.pathname}?${params.toString()}`);
   }, [page]);
+
+  const selectPage = (key) => {
+    setPage(key);
+    setMobileShowingNav(false);
+  };
 
   let content;
   if (user.role === "user") {
@@ -3163,7 +3173,7 @@ function Shell({ user, db, run, pushToast, onLogout }) {
   }
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${mobileShowingNav ? "mobile-showing-nav" : "mobile-showing-content"}`}>
       <a href="#main-content" className="skip-link">Skip to main content</a>
       <aside className="sidebar">
         <div className="brand-mark small">adspXce</div>
@@ -3172,7 +3182,7 @@ function Shell({ user, db, run, pushToast, onLogout }) {
             const Icon = n.icon;
             const unread = n.key === "notifications" ? (db.users[user.id]?.notifications || []).filter((x) => !x.read).length : 0;
             return (
-              <button key={n.key} className={page === n.key ? "nav-btn active" : "nav-btn"} onClick={() => setPage(n.key)} aria-current={page === n.key ? "page" : undefined}>
+              <button key={n.key} className={page === n.key ? "nav-btn active" : "nav-btn"} onClick={() => selectPage(n.key)} aria-current={page === n.key ? "page" : undefined}>
                 <Icon size={16} aria-hidden="true" /> {n.label}
                 {unread > 0 && <span className="nav-badge">{unread > 9 ? "9+" : unread}</span>}
               </button>
@@ -3183,6 +3193,9 @@ function Shell({ user, db, run, pushToast, onLogout }) {
       </aside>
       <main className="main" id="main-content" tabIndex={-1}>
         <div className="topbar">
+          <button className="mobile-back-btn" onClick={() => setMobileShowingNav(true)} aria-label="Back to menu">
+            <ChevronRight size={18} style={{ transform: "rotate(180deg)" }} />
+          </button>
           <div className="topbar-role">{user.role === "advertiser" ? "Advertiser" : user.role === "admin" ? "Administrator" : "User"} account</div>
           <TopSearch db={db} run={run} pushToast={pushToast} />
           <div className="topbar-name">{user.name}</div>
@@ -3455,7 +3468,22 @@ function GlobalStyle() {
 
       /* ---------- Shell ---------- */
       .app-shell { display: grid; grid-template-columns: 220px 1fr; width: 100%; }
-      @media (max-width: 760px) { .app-shell { grid-template-columns: 1fr; } .sidebar { flex-direction: row; overflow-x: auto; overflow-y: visible; position: static; height: auto; } .sidebar nav { flex-direction: row; } }
+      .mobile-back-btn { display: none; }
+      @media (max-width: 760px) {
+        .app-shell { grid-template-columns: 1fr; }
+        .sidebar { position: static; height: auto; }
+        .mobile-showing-content .sidebar { display: none; }
+        .mobile-showing-nav .main { display: none; }
+        .mobile-showing-content .mobile-back-btn {
+          display: flex; align-items: center; justify-content: center;
+          background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px;
+          width: 34px; height: 34px; color: var(--ink); margin-right: 10px; flex-shrink: 0;
+        }
+        /* Tables can genuinely be wider than a phone screen — give them their
+           own contained horizontal scroll rather than letting the whole page
+           scroll sideways, which is what was actually happening before. */
+        .card:has(table) { overflow-x: auto; }
+      }
       .sidebar {
         background: radial-gradient(320px 200px at 0% 0%, rgba(82,227,194,0.05), transparent 60%), var(--surface);
         border-right: 1px solid var(--line); display: flex; flex-direction: column; padding-bottom: 16px;
