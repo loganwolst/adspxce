@@ -1779,11 +1779,26 @@ function UserStore({ user, db, run, pushToast }) {
 }
 
 function UserOrders({ user, db }) {
-  const orders = Object.values(db.orders || {}).filter((o) => o.userId === user.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const [tab, setTab] = useState("active");
+  const allOrders = Object.values(db.orders || {}).filter((o) => o.userId === user.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const activeOrders = allOrders.filter((o) => !["delivered", "cancelled"].includes(o.status));
+  const historyOrders = allOrders.filter((o) => ["delivered", "cancelled"].includes(o.status));
+  const orders = tab === "active" ? activeOrders : historyOrders;
+
   return (
     <div>
       <div className="page-head"><h2>My orders</h2><p>Everything you've bought with your wallet balance.</p></div>
-      {orders.length === 0 ? <EmptyState icon={Wallet} title="No orders yet" sub="Purchases from the Store will show up here with tracking once they ship." /> : (
+      <div className="chip-row" style={{ marginBottom: 16 }}>
+        <button type="button" className={tab === "active" ? "chip active" : "chip"} aria-pressed={tab === "active"} onClick={() => setTab("active")}>Active ({activeOrders.length})</button>
+        <button type="button" className={tab === "history" ? "chip active" : "chip"} aria-pressed={tab === "history"} onClick={() => setTab("history")}>History ({historyOrders.length})</button>
+      </div>
+      {orders.length === 0 ? (
+        <EmptyState
+          icon={Wallet}
+          title={tab === "active" ? "No active orders" : "No past orders yet"}
+          sub={tab === "active" ? "Purchases from the Store will show up here with tracking once they ship." : "Delivered and cancelled orders will show up here."}
+        />
+      ) : (
         <div className="camp-grid">
           {orders.map((o) => {
             const adv = db.users[o.advertiserId];

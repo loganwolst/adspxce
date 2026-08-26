@@ -23,6 +23,16 @@ package.json      Root scripts (build client, start server)
 
 ## Since the last build
 
+- **Split My Orders into Active/History tabs** — worth being clear
+  about what this actually fixes: completed orders were never being
+  deleted or hidden, every order stays in the data forever regardless
+  of status. But having everything mixed into one list made it easy to
+  feel like a completed order had vanished, even though it hadn't.
+  Verified the real order status values directly against what the
+  advertiser fulfilment flow actually sets (pending → processing →
+  shipped → delivered, or cancelled) before building the split, rather
+  than guessing at the status names.
+
 - **Reworked mobile navigation** — two real fixes, both scoped to
   entirely inside the existing mobile-only media query, so desktop is
   unaffected by construction, not just by assumption (verified this
