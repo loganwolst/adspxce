@@ -720,6 +720,49 @@ function doSetUserFlag(db, { userId, field, value }) {
   return { message: "Updated." };
 }
 
+// A hard delete is only safe when nothing depends on this account's
+// history — otherwise it would silently corrupt platform financial
+// reporting (net position, revenue, bonuses paid all sum transactions
+// by userId). So: no history at all -> genuinely removed. Any real
+// activity -> anonymized instead, login permanently blocked, but the
+// ledger entry stays honest. Either way, the account disappears from
+// everyone else's followers/following/pending-requests too.
+function doAdminDeleteUser(db, { userId }) {
+  const user = db.users[userId];
+  if (!user) return { error: "User not found." };
+  if (user.role !== "user") return { error: "Only regular user accounts can be deleted this way." };
+  if (user.balance > 0) return { error: "This account still has a balance — resolve it first (withdraw or donate)." };
+  if ((user.pendingWithdrawal || 0) > 0) return { error: "This account has a withdrawal in progress — wait for it to resolve first." };
+
+  const originalName = user.name;
+  const hasHistory = db.transactions.some((t) => t.userId === userId || t.advertiserId === userId);
+
+  Object.values(db.users).forEach((u) => {
+    if (u.id === userId) return;
+    if (u.following) u.following = u.following.filter((id) => id !== userId);
+    if (u.followRequestsReceived) u.followRequestsReceived = u.followRequestsReceived.filter((id) => id !== userId);
+  });
+
+  if (!hasHistory) {
+    delete db.users[userId];
+    return { message: `${originalName} permanently deleted — no transaction history existed.` };
+  }
+
+  user.name = "Deleted user";
+  user.email = `deleted-${userId}@removed.local`;
+  user.avatarDataUrl = null;
+  user.wishlist = [];
+  user.following = [];
+  user.followRequestsReceived = [];
+  user.profile = { interests: [], ageRange: null, region: "" };
+  user.identityVerifiedName = null;
+  user.identityFingerprint = null;
+  user.passwordHash = "deleted";
+  user.suspended = true;
+  user.deleted = true;
+  return { message: `${originalName} anonymized — real transaction history exists, so it's preserved for accurate reporting, but no personal data remains and the account can never log in again.` };
+}
+
 function doUpdateConfig(db, { patch }) {
   if (!patch || !patch.membership) return { error: "Invalid configuration payload." };
   if (patch.cpvMin >= patch.cpvMax) return { error: "CPV minimum must be less than CPV maximum." };
@@ -1027,7 +1070,7 @@ module.exports = {
   seedDB, INTEREST_TAGS, AGE_RANGES, CHARITIES,
   doRegister, doCompleteView, doRequestWithdrawal, doResolveWithdrawal, doUpgradeMembership, doRequestAdvertiserWithdrawal,
   doAdvertiserSubscribe, doAdvertiserDeposit, doCreateCampaign, doSetCampaignStatus,
-  doSetAdvertiserStatus, doSetUserFlag, doUpdateConfig,
+  doSetAdvertiserStatus, doSetUserFlag, doAdminDeleteUser, doUpdateConfig,
   doCreateProduct, doSetProductStatus, doAdminSetProductStatus, doRestockProduct, doPurchaseProduct, doSetOrderStatus,
   doUpdateProfile, doSetMutePrefs, doDonate, computeTrustScore, doRecordStripeDeposit,
   doMarkWithdrawalTransferred, doFailRealWithdrawal, doSetStripeConnectAccount, doSetStripeConnectStatus,

@@ -23,6 +23,23 @@ package.json      Root scripts (build client, start server)
 
 ## Since the last build
 
+- **Added permanent user deletion for admin** — needed real design
+  thought, since a naive delete would have corrupted the financial
+  reporting just built (net position, revenue, bonuses paid all sum
+  transactions by user). Accounts with genuinely no transaction history
+  (truly-unused test accounts, exactly the stated use case) get properly
+  hard-deleted — actual data reduction. Accounts with any real activity
+  get anonymized instead — name, email, photo, and profile all scrubbed,
+  login permanently blocked, but the ledger entry stays intact so
+  platform financial reporting stays accurate. Blocked outright if
+  there's an unresolved balance or withdrawal in progress, and cleaned
+  up from every other account's followers/following/pending-requests
+  regardless of which path applies. Given this is genuinely irreversible,
+  tested every one of these properties directly rather than assuming
+  any of them: the balance block, the hard-delete-vs-anonymize split,
+  the social-graph cleanup, and that advertisers/admins correctly can't
+  be deleted through this path at all.
+
 - **Fixed a genuine gap: admin had zero visibility into the Store** —
   good catch. No nav item, no way to see any product, and no way to
   remove one, even something clearly inappropriate. Added a full admin

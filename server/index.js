@@ -52,6 +52,7 @@ const ACTIONS = {
   SET_CAMPAIGN_STATUS: { fn: logic.doSetCampaignStatus, level: "admin" },
   SET_ADVERTISER_STATUS: { fn: logic.doSetAdvertiserStatus, level: "admin" },
   SET_USER_FLAG: { fn: logic.doSetUserFlag, level: "admin" },
+  ADMIN_DELETE_USER: { fn: logic.doAdminDeleteUser, level: "admin" },
   UPDATE_CONFIG: { fn: logic.doUpdateConfig, level: "admin" },
   CLEAR_IDENTITY_FLAG: { fn: logic.doClearIdentityFlag, level: "admin" },
   SET_AVATAR: { fn: logic.doSetAvatar, level: "self" },

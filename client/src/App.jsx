@@ -2544,6 +2544,23 @@ function AdminUsers({ db, run, pushToast }) {
                 <button className="btn-mini danger" onClick={async () => { const r = await run('SET_USER_FLAG', { userId: u.id, field: "suspended", value: !u.suspended }); pushToast(r.message || r.error, r.error ? "error" : "success"); }}>
                   {u.suspended ? "Unsuspend" : "Suspend"}
                 </button>
+                {!u.deleted && (
+                  <button
+                    className="btn-mini danger"
+                    onClick={async () => {
+                      if (u.balance > 0 || (u.pendingWithdrawal || 0) > 0) {
+                        pushToast(`${u.name} has an unresolved balance and can't be deleted until it's resolved.`, "error");
+                        return;
+                      }
+                      const confirmed = window.confirm(`Permanently delete ${u.name}? If they've ever watched an ad or earned anything, their personal data is scrubbed but the financial record stays for accurate reporting — this can't be undone either way.`);
+                      if (!confirmed) return;
+                      const r = await run('ADMIN_DELETE_USER', { userId: u.id });
+                      pushToast(r.message || r.error, r.error ? "error" : "success");
+                    }}
+                  >
+                    Delete
+                  </button>
+                )}
               </td>
             </tr>
           ))}
