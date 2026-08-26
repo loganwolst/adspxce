@@ -289,6 +289,35 @@ app.post("/api/stripe/webhook", async (req, res) => {
     await withDB((draft) => logic.doSetStripeConnectStatus(draft, { stripeConnectAccountId: account.id, onboarded }));
   }
 
+  if (event.type === "identity.verification_session.verified" || event.type === "identity.verification_session.requires_input") {
+    const sessionObj = event.data.object;
+    const preDb = readDB();
+    const user = Object.values(preDb.users).find((u) => u.identityVerificationSessionId === sessionObj.id);
+    if (user) {
+      try {
+        let status = "processing";
+        let firstName, lastName, dob;
+        if (event.type === "identity.verification_session.verified") {
+          // Webhook payloads don't reliably include expanded fields, so
+          // re-retrieve the full session the same way the manual check
+          // does, rather than trusting verified_outputs is already here.
+          const fullSession = await stripe.identity.verificationSessions.retrieve(sessionObj.id, { expand: ["verified_outputs"] });
+          status = "verified";
+          firstName = fullSession.verified_outputs?.first_name;
+          lastName = fullSession.verified_outputs?.last_name;
+          dob = fullSession.verified_outputs?.dob
+            ? `${fullSession.verified_outputs.dob.year}-${String(fullSession.verified_outputs.dob.month).padStart(2, "0")}-${String(fullSession.verified_outputs.dob.day).padStart(2, "0")}`
+            : undefined;
+        } else {
+          status = "failed";
+        }
+        await withDB((draft) => logic.doApplyIdentityResult(draft, { userId: user.id, status, firstName, lastName, dob }));
+      } catch (e) {
+        console.error("Stripe Identity webhook processing failed:", e.message);
+      }
+    }
+  }
+
   res.json({ received: true });
 });
 

@@ -23,6 +23,17 @@ package.json      Root scripts (build client, start server)
 
 ## Since the last build
 
+- **Fixed identity verification not resolving automatically** — a real
+  gap, found from a genuinely good question about why an account
+  (Jack Buckley) was stuck on "Processing." Confirmed directly: no
+  webhook existed for identity events at all, only a manual "check
+  status" button the person had to click themselves. Added the missing
+  webhook handler, mirroring the same name/DOB extraction logic already
+  proven in the manual check. **Requires one manual step on Stripe's
+  side to actually take effect** — the existing webhook endpoint needs
+  the two identity events added to it (steps updated in the setup
+  section below); the code alone can't do anything until that's done.
+
 - **Added gifting on the Store** — send a product to anyone by their
   referral code, paid from your own balance, shipped to their own saved
   address. The privacy guarantee was the whole point of the feature, so
@@ -701,11 +712,14 @@ package.json      Root scripts (build client, start server)
    Stripe dashboard) — no real charges, no business verification needed yet.
 2. Dashboard → Developers → API keys → copy the **Secret key** (starts
    `sk_test_`). Add it as `STRIPE_SECRET_KEY` in Railway's Variables tab.
-3. Dashboard → Developers → Webhooks → Add endpoint → URL:
-   `https://adspxce.com/api/stripe/webhook` → select **both**
-   `checkout.session.completed` (deposits) and `account.updated` (payout
-   onboarding status) → save, then copy the **Signing
-   secret** (starts `whsec_`) → add as `STRIPE_WEBHOOK_SECRET` in Railway.
+3. Dashboard → Developers → Webhooks → find your existing endpoint
+   (`https://adspxce.com/api/stripe/webhook`) → click into it → **Add events**
+   → select **all four**: `checkout.session.completed` (deposits),
+   `account.updated` (payout onboarding status), and the two identity
+   events, `identity.verification_session.verified` and
+   `identity.verification_session.requires_input` (so verification
+   resolves automatically — no signing secret change needed, this reuses
+   the same endpoint).
 4. Redeploy (any new commit triggers this). Log in as an approved
    advertiser (morgan@brand.test), go to Billing → "Pay with card", and
    pay using Stripe's test card `4242 4242 4242 4242`, any future expiry,
