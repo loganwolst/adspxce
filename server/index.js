@@ -68,6 +68,7 @@ const ACTIONS = {
   ADMIT_WAITLIST_BATCH: { fn: logic.doAdmitWaitlistBatch, level: "admin" },
   CREATE_PRODUCT: { fn: logic.doCreateProduct, level: "self" },
   SET_PRODUCT_STATUS: { fn: logic.doSetProductStatus, level: "self" },
+  ADMIN_SET_PRODUCT_STATUS: { fn: logic.doAdminSetProductStatus, level: "admin" },
   RESTOCK_PRODUCT: { fn: logic.doRestockProduct, level: "self" },
   PURCHASE_PRODUCT: { fn: logic.doPurchaseProduct, level: "self" },
   SET_ORDER_STATUS: { fn: logic.doSetOrderStatus, level: "self" },

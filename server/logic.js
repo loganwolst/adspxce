@@ -768,6 +768,18 @@ function doSetProductStatus(db, { userId, productId, status }) {
   const p = db.products[productId];
   if (!p) return { error: "Product not found." };
   if (p.advertiserId !== userId) return { error: "You can only manage your own products." };
+  if (p.status === "removed") return { error: "This product was removed by an admin and can't be reactivated." };
+  p.status = status;
+  return { message: `Product marked ${status}.` };
+}
+
+// Distinct from the advertiser's own active/inactive toggle — this is
+// specifically for admin content moderation, and it's deliberately
+// sticky: doSetProductStatus above refuses to touch a "removed" product,
+// so an advertiser can't just switch it back to active themselves.
+function doAdminSetProductStatus(db, { productId, status }) {
+  const p = db.products[productId];
+  if (!p) return { error: "Product not found." };
   p.status = status;
   return { message: `Product marked ${status}.` };
 }
@@ -1016,7 +1028,7 @@ module.exports = {
   doRegister, doCompleteView, doRequestWithdrawal, doResolveWithdrawal, doUpgradeMembership, doRequestAdvertiserWithdrawal,
   doAdvertiserSubscribe, doAdvertiserDeposit, doCreateCampaign, doSetCampaignStatus,
   doSetAdvertiserStatus, doSetUserFlag, doUpdateConfig,
-  doCreateProduct, doSetProductStatus, doRestockProduct, doPurchaseProduct, doSetOrderStatus,
+  doCreateProduct, doSetProductStatus, doAdminSetProductStatus, doRestockProduct, doPurchaseProduct, doSetOrderStatus,
   doUpdateProfile, doSetMutePrefs, doDonate, computeTrustScore, doRecordStripeDeposit,
   doMarkWithdrawalTransferred, doFailRealWithdrawal, doSetStripeConnectAccount, doSetStripeConnectStatus,
   getWeekAnchor, distinctActiveDaysThisWeek, maybePayLoyaltyBonus,

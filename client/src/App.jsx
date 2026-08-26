@@ -12,7 +12,7 @@ const VIEW_SECONDS = 6;
 
 const STATUS_COLORS = {
   active: "#52E3C2", pending: "#D4AF5A", approved: "#52E3C2", paused: "#D4AF5A",
-  completed: "#9A9CA6", rejected: "#F0796B", suspended: "#F0796B", draft: "#7C7E86",
+  completed: "#9A9CA6", rejected: "#F0796B", suspended: "#F0796B", draft: "#7C7E86", removed: "#F0796B",
 };
 
 const TIER_LABELS = { basic: "Basic", plus: "Upgraded", premium: "Gold" };
@@ -2587,6 +2587,53 @@ function AdminAdvertisers({ db, run, pushToast }) {
   );
 }
 
+function AdminProducts({ db, run, pushToast }) {
+  const products = Object.values(db.products || {}).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const act = async (productId, status) => { const r = await run('ADMIN_SET_PRODUCT_STATUS', { productId, status }); pushToast(r.message || r.error, r.error ? "error" : "success"); };
+
+  return (
+    <div>
+      <div className="page-head"><h2>Products</h2><p>Every product listed across all advertisers — remove anything that isn't fit for the Store.</p></div>
+      {products.length === 0 ? (
+        <EmptyState icon={ShoppingBag} title="No products listed yet" />
+      ) : (
+        <div className="camp-grid">
+          {products.map((p) => {
+            const adv = db.users[p.advertiserId];
+            return (
+              <div key={p.id} className="camp-card">
+                <div className="camp-card-top">
+                  <span className="camp-card-name">{p.name}</span>
+                  <Badge status={p.status} />
+                </div>
+                <div className="muted">{adv ? adv.company : "Unknown advertiser"}</div>
+                <div className="camp-card-title">{p.description}</div>
+                <div className="camp-stats-row">
+                  <div><span className="muted">Price</span> {money(p.price)}</div>
+                  <div><span className="muted">Stock</span> {p.stock}</div>
+                  <div><span className="muted">Wishlisted by</span> {p.wishlistCount || 0}</div>
+                </div>
+                <div className="row-actions" style={{ marginTop: 10 }}>
+                  {p.status !== "removed" ? (
+                    <button
+                      className="btn-mini danger"
+                      onClick={() => { if (window.confirm(`Remove "${p.name}"? The advertiser won't be able to reactivate it themselves.`)) act(p.id, "removed"); }}
+                    >
+                      <Ban size={13} /> Remove
+                    </button>
+                  ) : (
+                    <button className="btn-mini" onClick={() => act(p.id, "active")}><PlayCircle size={13} /> Restore</button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AdminCampaigns({ db, run, pushToast }) {
   const campaigns = Object.values(db.campaigns).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const act = async (campaignId, status) => { const r = await run('SET_CAMPAIGN_STATUS', { campaignId, status }); pushToast(r.message || r.error, r.error ? "error" : "success"); };
@@ -2892,6 +2939,7 @@ const NAV = {
     { key: "waitlist", label: "Waitlist", icon: Clock },
     { key: "advertisers", label: "Advertisers", icon: Building2 },
     { key: "campaigns", label: "Campaigns", icon: Megaphone },
+    { key: "products", label: "Products", icon: ShoppingBag },
     { key: "withdrawals", label: "Withdrawals", icon: Wallet },
     { key: "ledger", label: "Ledger", icon: Clock },
     { key: "config", label: "Configuration", icon: Settings },
@@ -2991,6 +3039,7 @@ function Shell({ user, db, run, pushToast, onLogout }) {
     else if (page === "waitlist") content = <AdminWaitlist db={db} run={run} pushToast={pushToast} />;
     else if (page === "advertisers") content = <AdminAdvertisers db={db} run={run} pushToast={pushToast} />;
     else if (page === "campaigns") content = <AdminCampaigns db={db} run={run} pushToast={pushToast} />;
+    else if (page === "products") content = <AdminProducts db={db} run={run} pushToast={pushToast} />;
     else if (page === "withdrawals") content = <AdminWithdrawals db={db} run={run} pushToast={pushToast} />;
     else if (page === "ledger") content = <AdminLedger db={db} />;
     else if (page === "config") content = <AdminConfig db={db} run={run} pushToast={pushToast} />;

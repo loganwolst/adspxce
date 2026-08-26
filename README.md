@@ -23,6 +23,17 @@ package.json      Root scripts (build client, start server)
 
 ## Since the last build
 
+- **Fixed a genuine gap: admin had zero visibility into the Store** —
+  good catch. No nav item, no way to see any product, and no way to
+  remove one, even something clearly inappropriate. Added a full admin
+  Products page — every product across every advertiser, with a Remove
+  action. Deliberately made this sticky: the advertiser's own status
+  toggle now refuses to touch anything an admin removed, so it can't
+  just be quietly reactivated — verified this exact property directly,
+  along with confirming admin can still reverse their own removal if it
+  was a mistake, and that a removed product is genuinely excluded from
+  the Store regardless of stock or anything else.
+
 - **Wishlist demand signal for advertisers** — one of the ideas from the
   earlier "what should we add" list, now built. Each product on the
   advertiser's Products page shows how many people have it wishlisted —
