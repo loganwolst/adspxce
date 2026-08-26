@@ -864,6 +864,7 @@ function doPurchaseProduct(db, { userId, productId, quantity, shippingAddress })
   user.balance = round2(user.balance - total);
   product.stock = product.stock - qty;
   user.savedAddress = addr;
+  adv.advertiserBalance = round2(adv.advertiserBalance + total);
 
   const orderId = uid("order");
   db.orders[orderId] = {
@@ -891,6 +892,8 @@ function doSetOrderStatus(db, { userId, orderId, status, carrier, trackingNumber
     }
     const buyer = db.users[order.userId];
     buyer.balance = round2(buyer.balance + order.total);
+    const seller = db.users[order.advertiserId];
+    if (seller) seller.advertiserBalance = round2(seller.advertiserBalance - order.total);
     const product = db.products[order.productId];
     if (product) product.stock = product.stock + order.quantity;
     db.transactions.unshift({

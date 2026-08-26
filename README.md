@@ -23,6 +23,19 @@ package.json      Root scripts (build client, start server)
 
 ## Since the last build
 
+- **Fixed a real gap found while preparing the FCA application**: a Store
+  purchase correctly debited the buyer's balance, but the advertiser was
+  never actually credited — a genuine unfinished piece of the money
+  flow, not a documented design choice. Fixed properly on both sides:
+  a purchase now credits the advertiser, and cancelling an order now
+  correctly reverses *both* the buyer's refund and the advertiser's
+  credit, so an advertiser can't end up keeping sale proceeds on an
+  order that got refunded. The client-side transaction labels for this
+  ("Store sale" in green, "Store sale reversed" in red) were already
+  built correctly and just needed the underlying money to actually be
+  real — verified the full purchase-then-cancel cycle nets to exactly
+  zero change for the advertiser, as it should.
+
 - **Added permanent user deletion for admin** — needed real design
   thought, since a naive delete would have corrupted the financial
   reporting just built (net position, revenue, bonuses paid all sum
