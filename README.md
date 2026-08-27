@@ -23,6 +23,40 @@ package.json      Root scripts (build client, start server)
 
 ## Since the last build
 
+- **Failed attention checks now actually get recorded** — a real gap,
+  good catch. The server-side support for this already existed and
+  worked correctly (tested it directly), but the client never once
+  called it — a missed check just silently restarted the video with
+  zero trace anywhere, meaning advertisers had no visibility into a
+  campaign's true attempt-to-success rate. Now reports the failure the
+  moment it happens, then still lets the person retry immediately
+  after — no extra friction for the user, but an honest record for
+  the advertiser this time.
+
+- **The mobile verification screen still wasn't fitting, even after the
+  scroll-lock fix** — the actual remaining cause: the challenge grid
+  plus the ad content above it could still genuinely exceed a small
+  phone screen. Rather than lean further on scrolling, redesigned it so
+  the ad content and progress bar hide once verification starts (the
+  person's already watched it, they don't need to keep seeing it) —
+  the challenge now gets comfortable room on any screen without needing
+  to scroll at all. Also switched the modal's sizing to `dvh` where
+  supported, which correctly accounts for a mobile browser's address
+  bar taking up real space — `vh` alone doesn't.
+
+- **Added total counts to Admin Users and Advertisers**, matching the
+  Waitlist page's style — total, verified/approved, waitlisted/pending,
+  and suspended, all visible at a glance instead of having to count
+  rows in a table.
+
+- **Grouped Admin Products and the Store by company** — both previously
+  showed a flat list of every individual product, which got cluttered
+  fast. Now shows companies first, click through to see that company's
+  products specifically. On the Store, search still works as a direct
+  flat lookup across everyone when actually used — grouping is just the
+  default browsing view, not a restriction on finding something
+  specific.
+
 - **Fixed a genuinely blocking bug: the human verification challenge
   couldn't be completed on mobile** — a real, well-known class of mobile
   bug. No modal in the app ever locked the page behind it from

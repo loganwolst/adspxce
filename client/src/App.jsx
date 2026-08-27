@@ -152,7 +152,7 @@ function HumanVerifyChallenge({ onPass }) {
   );
 }
 
-function AdViewerModal({ campaign, variant, rewardAmount, onClose, onComplete }) {
+function AdViewerModal({ campaign, variant, rewardAmount, onClose, onComplete, run }) {
   useBodyScrollLock();
   const displayTitle = variant === "B" && campaign.variantB ? campaign.variantB.adTitle : campaign.adTitle;
   const displayContent = variant === "B" && campaign.variantB ? campaign.variantB.content : campaign.content;
@@ -165,6 +165,7 @@ function AdViewerModal({ campaign, variant, rewardAmount, onClose, onComplete })
   const [checkExpired, setCheckExpired] = useState(false);
   const [humanVerified, setHumanVerified] = useState(false);
   const startRef = useRef(Date.now());
+  const failureReportedRef = useRef(false);
   const checkPointRef = useRef(35 + Math.random() * 40); // appears somewhere in 35–75% of the timer
   const checkShownRef = useRef(false);
   const checkTimeoutRef = useRef(null);
@@ -173,6 +174,7 @@ function AdViewerModal({ campaign, variant, rewardAmount, onClose, onComplete })
     startRef.current = Date.now();
     checkPointRef.current = 35 + Math.random() * 40;
     checkShownRef.current = false;
+    failureReportedRef.current = false;
     if (checkTimeoutRef.current) clearTimeout(checkTimeoutRef.current);
     setProgress(0);
     setDone(false);
@@ -221,7 +223,16 @@ function AdViewerModal({ campaign, variant, rewardAmount, onClose, onComplete })
   };
 
   const missed = checkExpired && !checkClicked;
+
+  useEffect(() => {
+    if (missed && !failureReportedRef.current) {
+      failureReportedRef.current = true;
+      run('COMPLETE_VIEW', { campaignId: campaign.id, attentionPassed: false, interruptions, variant });
+    }
+  }, [missed]);
   const readyToClaim = done && checkClicked;
+
+  const showingCaptcha = readyToClaim && !humanVerified;
 
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true">
@@ -230,36 +241,40 @@ function AdViewerModal({ campaign, variant, rewardAmount, onClose, onComplete })
           <div className="modal-eyebrow">Verified advertisement</div>
           <button className="icon-btn" onClick={onClose} aria-label="Close"><X size={16} /></button>
         </div>
-        <div className="ad-frame">
-          <div className="ad-frame-title">{displayTitle}</div>
-          <div className="ad-frame-body">{displayContent}</div>
-          <div className="ad-frame-cta">{campaign.destinationUrl}</div>
-          {checkVisible && (
-            <button type="button" className="attention-check" onClick={handleCheckClick}>
-              <ShieldCheck size={14} /> Tap to confirm you're watching
-            </button>
-          )}
-        </div>
-        {interrupted && !done && (
-          <div className="inline-warning">
-            <AlertCircle size={14} /> Timer paused — stay on this tab to complete verification.
-          </div>
+        {!showingCaptcha && (
+          <>
+            <div className="ad-frame">
+              <div className="ad-frame-title">{displayTitle}</div>
+              <div className="ad-frame-body">{displayContent}</div>
+              <div className="ad-frame-cta">{campaign.destinationUrl}</div>
+              {checkVisible && (
+                <button type="button" className="attention-check" onClick={handleCheckClick}>
+                  <ShieldCheck size={14} /> Tap to confirm you're watching
+                </button>
+              )}
+            </div>
+            {interrupted && !done && (
+              <div className="inline-warning">
+                <AlertCircle size={14} /> Timer paused — stay on this tab to complete verification.
+              </div>
+            )}
+            {missed && (
+              <div className="inline-warning">
+                <AlertCircle size={14} /> Attention check missed — this view won't be counted.
+              </div>
+            )}
+            <div className="progress-track">
+              <div className="progress-fill" style={{ width: `${progress}%` }} />
+            </div>
+          </>
         )}
-        {missed && (
-          <div className="inline-warning">
-            <AlertCircle size={14} /> Attention check missed — this view won't be counted.
-          </div>
-        )}
-        <div className="progress-track">
-          <div className="progress-fill" style={{ width: `${progress}%` }} />
-        </div>
         <div className="modal-meta">
-          <span>{missed ? "Not verified" : readyToClaim && !humanVerified ? "One more step" : done ? "Viewing requirement met" : `Verifying… ${Math.ceil((100 - progress) / (100 / VIEW_SECONDS))}s left`}</span>
+          <span>{missed ? "Not verified" : showingCaptcha ? "One more step" : done ? "Viewing requirement met" : `Verifying… ${Math.ceil((100 - progress) / (100 / VIEW_SECONDS))}s left`}</span>
           <span>Reward on completion: <strong>{money(rewardAmount)}</strong></span>
         </div>
         {missed ? (
           <button className="btn btn-primary btn-block" onClick={restart}>Try again</button>
-        ) : readyToClaim && !humanVerified ? (
+        ) : showingCaptcha ? (
           <HumanVerifyChallenge onPass={() => setHumanVerified(true)} />
         ) : (
           <button className="btn btn-primary btn-block" disabled={!readyToClaim || !humanVerified} onClick={() => onComplete(campaign.id, { attentionPassed: checkClicked, interruptions }, variant)}>
@@ -801,6 +816,7 @@ function UserAds({ user, db, run, pushToast }) {
           rewardAmount={round2(active.cpv * (tierRate / 100))}
           onClose={() => setActive(null)}
           onComplete={complete}
+          run={run}
         />
       )}
     </div>
@@ -1718,17 +1734,30 @@ function GiftModal({ product, user, run, pushToast, onClose }) {
 
 function UserStore({ user, db, run, pushToast }) {
   const [query, setQuery] = useState("");
+  const [companyId, setCompanyId] = useState(null);
   const [checkoutProduct, setCheckoutProduct] = useState(null);
   const [giftProduct, setGiftProduct] = useState(null);
 
-  const products = Object.values(db.products || {}).filter((p) => {
+  const availableProducts = Object.values(db.products || {}).filter((p) => {
     if (p.status !== "active" || p.stock <= 0) return false;
     const adv = db.users[p.advertiserId];
-    if (!adv || adv.advertiserStatus !== "approved") return false;
-    if (!query.trim()) return true;
-    const q = query.toLowerCase();
-    return p.name.toLowerCase().includes(q) || adv.company.toLowerCase().includes(q) || (p.category || "").toLowerCase().includes(q);
+    return adv && adv.advertiserStatus === "approved";
   });
+
+  const searching = query.trim().length > 0;
+  const q = query.toLowerCase();
+  const searchResults = searching
+    ? availableProducts.filter((p) => {
+        const adv = db.users[p.advertiserId];
+        return p.name.toLowerCase().includes(q) || adv.company.toLowerCase().includes(q) || (p.category || "").toLowerCase().includes(q);
+      })
+    : [];
+
+  const companies = Object.values(db.users)
+    .filter((u) => u.role === "advertiser" && u.advertiserStatus === "approved")
+    .map((adv) => ({ adv, products: availableProducts.filter((p) => p.advertiserId === adv.id) }))
+    .filter((c) => c.products.length > 0)
+    .sort((a, b) => b.products.length - a.products.length);
 
   const confirmPurchase = async ({ quantity, shippingAddress }) => {
     const r = await run('PURCHASE_PRODUCT', { productId: checkoutProduct.id, quantity, shippingAddress });
@@ -1736,45 +1765,69 @@ function UserStore({ user, db, run, pushToast }) {
     if (!r.error) setCheckoutProduct(null);
   };
 
+  const ProductCard = (p) => {
+    const adv = db.users[p.advertiserId];
+    const wishlisted = (user.wishlist || []).includes(p.id);
+    return (
+      <div key={p.id} className="ad-card">
+        <div className="ad-card-top">
+          <span className="badge" style={{ color: "#E8C468", background: "#E8C46817", borderColor: "#E8C46840" }}>{adv.company}</span>
+          <button
+            className="wishlist-toggle"
+            aria-label={wishlisted ? "Remove from wishlist" : "Add to wishlist"}
+            aria-pressed={wishlisted}
+            onClick={async () => { const r = await run('TOGGLE_WISHLIST', { productId: p.id }); if (r.error) pushToast(r.error, "error"); }}
+          >
+            <Heart size={16} fill={wishlisted ? "#F0796B" : "none"} color={wishlisted ? "#F0796B" : "currentColor"} />
+          </button>
+        </div>
+        <div className="ad-card-title">{p.name}</div>
+        <div className="ad-card-desc">{p.description}</div>
+        <div className="muted" style={{ fontSize: 11.5, marginBottom: 8 }}>
+          {p.stock} in stock{p.wishlistCount > 0 ? ` · ${p.wishlistCount} ${p.wishlistCount === 1 ? "person wants" : "people want"} this` : ""}
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+          <span className="ad-card-reward">{money(p.price)}</span>
+        </div>
+        <button className="btn btn-primary btn-block" onClick={() => setCheckoutProduct(p)}>Buy with wallet</button>
+        <button className="btn btn-ghost btn-block" style={{ marginTop: 6 }} onClick={() => setGiftProduct(p)}><Gift size={14} /> Send as a gift</button>
+      </div>
+    );
+  };
+
   return (
     <div>
       <div className="page-head"><h2>Store</h2><p>Spend your wallet balance directly with the brands you're watching ads for.</p></div>
       <div className="card">
-        <input className="input" placeholder="Search by product, category, or company — e.g. Northwind" value={query} onChange={(e) => setQuery(e.target.value)} />
+        <input className="input" placeholder="Search by product, category, or company — e.g. Northwind" value={query} onChange={(e) => { setQuery(e.target.value); setCompanyId(null); }} />
       </div>
-      {products.length === 0 ? (
-        <EmptyState icon={Wallet} title="No products match" sub="Try a different search, or check back as more advertisers join the store." />
+
+      {searching ? (
+        searchResults.length === 0 ? (
+          <EmptyState icon={Wallet} title="No products match" sub="Try a different search, or check back as more advertisers join the store." />
+        ) : (
+          <div className="ad-grid">{searchResults.map(ProductCard)}</div>
+        )
+      ) : companyId ? (
+        <>
+          <button className="btn-mini" style={{ marginBottom: 14 }} onClick={() => setCompanyId(null)}>← All companies</button>
+          <div className="ad-grid">{companies.find((c) => c.adv.id === companyId)?.products.map(ProductCard)}</div>
+        </>
+      ) : companies.length === 0 ? (
+        <EmptyState icon={Wallet} title="Nothing in the Store yet" sub="Check back as more advertisers join." />
       ) : (
-        <div className="ad-grid">
-          {products.map((p) => {
-            const adv = db.users[p.advertiserId];
-            const wishlisted = (user.wishlist || []).includes(p.id);
-            return (
-              <div key={p.id} className="ad-card">
-                <div className="ad-card-top">
-                  <span className="badge" style={{ color: "#E8C468", background: "#E8C46817", borderColor: "#E8C46840" }}>{adv.company}</span>
-                  <button
-                    className="wishlist-toggle"
-                    aria-label={wishlisted ? "Remove from wishlist" : "Add to wishlist"}
-                    aria-pressed={wishlisted}
-                    onClick={async () => { const r = await run('TOGGLE_WISHLIST', { productId: p.id }); if (r.error) pushToast(r.error, "error"); }}
-                  >
-                    <Heart size={16} fill={wishlisted ? "#F0796B" : "none"} color={wishlisted ? "#F0796B" : "currentColor"} />
-                  </button>
-                </div>
-                <div className="ad-card-title">{p.name}</div>
-                <div className="ad-card-desc">{p.description}</div>
-                <div className="muted" style={{ fontSize: 11.5, marginBottom: 8 }}>
-                  {p.stock} in stock{p.wishlistCount > 0 ? ` · ${p.wishlistCount} ${p.wishlistCount === 1 ? "person wants" : "people want"} this` : ""}
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                  <span className="ad-card-reward">{money(p.price)}</span>
-                </div>
-                <button className="btn btn-primary btn-block" onClick={() => setCheckoutProduct(p)}>Buy with wallet</button>
-                <button className="btn btn-ghost btn-block" style={{ marginTop: 6 }} onClick={() => setGiftProduct(p)}><Gift size={14} /> Send as a gift</button>
+        <div className="camp-grid">
+          {companies.map(({ adv, products: cProducts }) => (
+            <div key={adv.id} className="camp-card" style={{ cursor: "pointer" }} onClick={() => setCompanyId(adv.id)}>
+              <div className="camp-card-top">
+                <span className="camp-card-name"><Building2 size={14} style={{ verticalAlign: "-2px", marginRight: 6 }} />{adv.company}</span>
               </div>
-            );
-          })}
+              <div className="camp-stats-row">
+                <div><span className="muted">Products</span> {cProducts.length}</div>
+                <div><span className="muted">From</span> {money(Math.min(...cProducts.map((p) => p.price)))}</div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
       {giftProduct && (
@@ -2646,9 +2699,18 @@ function AdminWaitlist({ db, run, pushToast }) {
 
 function AdminUsers({ db, run, pushToast }) {
   const users = Object.values(db.users).filter((u) => u.role === "user").sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const verifiedCount = users.filter((u) => u.identityVerificationStatus === "verified").length;
+  const suspendedCount = users.filter((u) => u.suspended).length;
+  const waitlistedCount = users.filter((u) => u.waitlisted).length;
   return (
     <div>
       <div className="page-head"><h2>Users</h2><p>Verification, suspension and earnings oversight.</p></div>
+      <div className="stat-grid">
+        <StatCard label="Total users" value={users.length} tone="#52E3C2" />
+        <StatCard label="Identity verified" value={verifiedCount} />
+        <StatCard label="Currently waitlisted" value={waitlistedCount} />
+        <StatCard label="Suspended" value={suspendedCount} />
+      </div>
       <div className="card">
       <table className="table">
         <thead><tr><th>Name</th><th>Email</th><th>Membership</th><th>Balance</th><th>Trust</th><th>ID Verified</th><th>Verified</th><th>Waitlist</th><th>Status</th><th></th></tr></thead>
@@ -2707,10 +2769,19 @@ function AdminUsers({ db, run, pushToast }) {
 
 function AdminAdvertisers({ db, run, pushToast }) {
   const advs = Object.values(db.users).filter((u) => u.role === "advertiser").sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const approvedCount = advs.filter((a) => a.advertiserStatus === "approved").length;
+  const pendingCount = advs.filter((a) => a.advertiserStatus === "pending").length;
+  const suspendedCount = advs.filter((a) => a.advertiserStatus === "suspended").length;
   const act = async (userId, status) => { const r = await run('SET_ADVERTISER_STATUS', { userId, status }); pushToast(r.message || r.error, r.error ? "error" : "success"); };
   return (
     <div>
       <div className="page-head"><h2>Advertisers</h2><p>Business verification and account status.</p></div>
+      <div className="stat-grid">
+        <StatCard label="Total advertisers" value={advs.length} tone="#52E3C2" />
+        <StatCard label="Approved" value={approvedCount} />
+        <StatCard label="Pending approval" value={pendingCount} />
+        <StatCard label="Suspended" value={suspendedCount} />
+      </div>
       <div className="camp-grid">
         {advs.map((a) => (
           <div key={a.id} className="camp-card">
@@ -2739,48 +2810,76 @@ function AdminAdvertisers({ db, run, pushToast }) {
 }
 
 function AdminProducts({ db, run, pushToast }) {
+  const [companyId, setCompanyId] = useState(null);
   const products = Object.values(db.products || {}).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const act = async (productId, status) => { const r = await run('ADMIN_SET_PRODUCT_STATUS', { productId, status }); pushToast(r.message || r.error, r.error ? "error" : "success"); };
 
-  return (
-    <div>
-      <div className="page-head"><h2>Products</h2><p>Every product listed across all advertisers — remove anything that isn't fit for the Store.</p></div>
-      {products.length === 0 ? (
-        <EmptyState icon={ShoppingBag} title="No products listed yet" />
-      ) : (
-        <div className="camp-grid">
-          {products.map((p) => {
-            const adv = db.users[p.advertiserId];
-            return (
-              <div key={p.id} className="camp-card">
+  const companies = Object.values(db.users)
+    .filter((u) => u.role === "advertiser")
+    .map((adv) => ({ adv, products: products.filter((p) => p.advertiserId === adv.id) }))
+    .filter((c) => c.products.length > 0)
+    .sort((a, b) => b.products.length - a.products.length);
+
+  if (!companyId) {
+    return (
+      <div>
+        <div className="page-head"><h2>Products</h2><p>Every advertiser with products listed — pick one to review or remove anything that isn't fit for the Store.</p></div>
+        {companies.length === 0 ? (
+          <EmptyState icon={ShoppingBag} title="No products listed yet" />
+        ) : (
+          <div className="camp-grid">
+            {companies.map(({ adv, products: cProducts }) => (
+              <div key={adv.id} className="camp-card" style={{ cursor: "pointer" }} onClick={() => setCompanyId(adv.id)}>
                 <div className="camp-card-top">
-                  <span className="camp-card-name">{p.name}</span>
-                  <Badge status={p.status} />
+                  <span className="camp-card-name"><Building2 size={14} style={{ verticalAlign: "-2px", marginRight: 6 }} />{adv.company}</span>
                 </div>
-                <div className="muted">{adv ? adv.company : "Unknown advertiser"}</div>
-                <div className="camp-card-title">{p.description}</div>
                 <div className="camp-stats-row">
-                  <div><span className="muted">Price</span> {money(p.price)}</div>
-                  <div><span className="muted">Stock</span> {p.stock}</div>
-                  <div><span className="muted">Wishlisted by</span> {p.wishlistCount || 0}</div>
-                </div>
-                <div className="row-actions" style={{ marginTop: 10 }}>
-                  {p.status !== "removed" ? (
-                    <button
-                      className="btn-mini danger"
-                      onClick={() => { if (window.confirm(`Remove "${p.name}"? The advertiser won't be able to reactivate it themselves.`)) act(p.id, "removed"); }}
-                    >
-                      <Ban size={13} /> Remove
-                    </button>
-                  ) : (
-                    <button className="btn-mini" onClick={() => act(p.id, "active")}><PlayCircle size={13} /> Restore</button>
-                  )}
+                  <div><span className="muted">Products</span> {cProducts.length}</div>
+                  <div><span className="muted">Removed</span> {cProducts.filter((p) => p.status === "removed").length}</div>
                 </div>
               </div>
-            );
-          })}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  const company = db.users[companyId];
+  const companyProducts = products.filter((p) => p.advertiserId === companyId);
+
+  return (
+    <div>
+      <button className="btn-mini" style={{ marginBottom: 14 }} onClick={() => setCompanyId(null)}>← All companies</button>
+      <div className="page-head"><h2>{company ? company.company : "Products"}</h2><p>Remove anything that isn't fit for the Store.</p></div>
+      <div className="camp-grid">
+        {companyProducts.map((p) => (
+          <div key={p.id} className="camp-card">
+            <div className="camp-card-top">
+              <span className="camp-card-name">{p.name}</span>
+              <Badge status={p.status} />
+            </div>
+            <div className="camp-card-title">{p.description}</div>
+            <div className="camp-stats-row">
+              <div><span className="muted">Price</span> {money(p.price)}</div>
+              <div><span className="muted">Stock</span> {p.stock}</div>
+              <div><span className="muted">Wishlisted by</span> {p.wishlistCount || 0}</div>
+            </div>
+            <div className="row-actions" style={{ marginTop: 10 }}>
+              {p.status !== "removed" ? (
+                <button
+                  className="btn-mini danger"
+                  onClick={() => { if (window.confirm(`Remove "${p.name}"? The advertiser won't be able to reactivate it themselves.`)) act(p.id, "removed"); }}
+                >
+                  <Ban size={13} /> Remove
+                </button>
+              ) : (
+                <button className="btn-mini" onClick={() => act(p.id, "active")}><PlayCircle size={13} /> Restore</button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -3628,7 +3727,7 @@ function GlobalStyle() {
       .follower-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-top: 1px dashed var(--line); }
       .follower-row:first-child { border-top: none; }
       .follower-row-info { display: flex; align-items: center; gap: 10px; }
-      .modal { background: var(--surface); border-radius: 14px; padding: 22px; width: 100%; max-width: 420px; max-height: 90vh; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+      .modal { background: var(--surface); border-radius: 14px; padding: 22px; width: 100%; max-width: 420px; max-height: 90vh; max-height: 90dvh; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
       .modal-head { display: flex; justify-content: space-between; align-items: center; }
       .modal-eyebrow { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft); font-weight: 700; }
       .ad-frame { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 18px; }
