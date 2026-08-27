@@ -1219,9 +1219,10 @@ function WishlistGrid({ productIds, db, onRemove, readOnly }) {
   );
 }
 
-function UserNotifications({ user, run, pushToast }) {
+function UserNotifications({ user, db, run, pushToast }) {
   const notifications = user.notifications || [];
   const unreadCount = notifications.filter((n) => !n.read).length;
+  const [viewingId, setViewingId] = useState(null);
 
   const markRead = async (id) => {
     await run('MARK_NOTIFICATION_READ', { notificationId: id });
@@ -1242,25 +1243,40 @@ function UserNotifications({ user, run, pushToast }) {
         {notifications.length === 0 ? (
           <EmptyState icon={Bell} title="Nothing yet" sub="Follow requests, approvals, and restock alerts will show up here." />
         ) : (
-          notifications.map((n) => (
-            <div key={n.id} className="follower-row" onClick={() => !n.read && markRead(n.id)} style={{ cursor: n.read ? "default" : "pointer", opacity: n.read ? 0.6 : 1 }}>
-              <div className="follower-row-info">
-                {!n.read && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--accent)", flexShrink: 0 }} />}
-                <div>
-                  <div style={{ fontSize: 13 }}>{n.message}</div>
-                  <div className="muted" style={{ fontSize: 11 }}>{fmtDate(n.createdAt)}</div>
+          notifications.map((n) => {
+            const showsPerson = n.type === "follow_request" || n.type === "follow_approved";
+            return (
+              <div key={n.id} className="follower-row" onClick={() => !n.read && markRead(n.id)} style={{ cursor: n.read ? "default" : "pointer", opacity: n.read ? 0.6 : 1 }}>
+                <div className="follower-row-info">
+                  {!n.read && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--accent)", flexShrink: 0 }} />}
+                  <div>
+                    <div style={{ fontSize: 13 }}>
+                      {n.message}
+                      {showsPerson && (
+                        <button
+                          type="button"
+                          className="link-inline"
+                          onClick={(e) => { e.stopPropagation(); setViewingId(n.relatedId); }}
+                        >
+                          View profile
+                        </button>
+                      )}
+                    </div>
+                    <div className="muted" style={{ fontSize: 11 }}>{fmtDate(n.createdAt)}</div>
+                  </div>
                 </div>
+                {n.type === "follow_request" && (user.followRequestsReceived || []).includes(n.relatedId) && (
+                  <div className="row-actions" onClick={(e) => e.stopPropagation()}>
+                    <button className="btn-mini" onClick={async () => { const r = await run('APPROVE_FOLLOW_REQUEST', { requesterId: n.relatedId }); pushToast(r.message || r.error, r.error ? "error" : "success"); markRead(n.id); }}>Approve</button>
+                    <button className="btn-mini danger" onClick={async () => { const r = await run('DENY_FOLLOW_REQUEST', { requesterId: n.relatedId }); pushToast(r.message || r.error, r.error ? "error" : "success"); markRead(n.id); }}>Deny</button>
+                  </div>
+                )}
               </div>
-              {n.type === "follow_request" && (user.followRequestsReceived || []).includes(n.relatedId) && (
-                <div className="row-actions" onClick={(e) => e.stopPropagation()}>
-                  <button className="btn-mini" onClick={async () => { const r = await run('APPROVE_FOLLOW_REQUEST', { requesterId: n.relatedId }); pushToast(r.message || r.error, r.error ? "error" : "success"); markRead(n.id); }}>Approve</button>
-                  <button className="btn-mini danger" onClick={async () => { const r = await run('DENY_FOLLOW_REQUEST', { requesterId: n.relatedId }); pushToast(r.message || r.error, r.error ? "error" : "success"); markRead(n.id); }}>Deny</button>
-                </div>
-              )}
-            </div>
-          ))
+            );
+          })
         )}
       </div>
+      {viewingId && <ViewProfile targetId={viewingId} db={db} run={run} pushToast={pushToast} onClose={() => setViewingId(null)} />}
     </div>
   );
 }
@@ -3284,7 +3300,7 @@ function Shell({ user, db, run, pushToast, onLogout }) {
     else if (page === "store") content = <UserStore user={db.users[user.id]} db={db} run={run} pushToast={pushToast} />;
     else if (page === "orders") content = <UserOrders user={db.users[user.id]} db={db} />;
     else if (page === "profile") content = <UserProfile user={db.users[user.id]} db={db} run={run} pushToast={pushToast} />;
-    else if (page === "notifications") content = <UserNotifications user={db.users[user.id]} run={run} pushToast={pushToast} />;
+    else if (page === "notifications") content = <UserNotifications user={db.users[user.id]} db={db} run={run} pushToast={pushToast} />;
     else if (page === "referrals") content = <UserReferrals user={db.users[user.id]} db={db} />;
     else if (page === "membership") content = <UserMembership user={db.users[user.id]} db={db} run={run} pushToast={pushToast} />;
     else if (page === "withdraw") content = <UserWithdraw user={db.users[user.id]} db={db} run={run} pushToast={pushToast} />;
@@ -3600,6 +3616,7 @@ function GlobalStyle() {
       .icon-btn { border: none; background: transparent; color: var(--ink-soft); padding: 4px; border-radius: 6px; }
       .icon-btn:hover { background: var(--line); }
       .btn-mini { border: 1px solid var(--line); background: var(--surface); border-radius: 6px; padding: 6px 10px; font-size: 11.5px; font-weight: 600; color: var(--ink); display: inline-flex; align-items: center; gap: 4px; }
+      .link-inline { background: transparent; border: none; padding: 0; margin-left: 6px; color: var(--accent); font-size: 12px; font-weight: 600; text-decoration: underline; cursor: pointer; }
       .btn-mini.danger { color: var(--danger); border-color: #EFC9C4; }
       .btn-mini:hover { background: var(--bg); }
 

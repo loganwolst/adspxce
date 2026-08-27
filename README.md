@@ -23,6 +23,13 @@ package.json      Root scripts (build client, start server)
 
 ## Since the last build
 
+- **Notifications now link straight to the person's profile** — for
+  follow requests and follow approvals, since both already reference a
+  real person, no more needing to search for them separately. No
+  server changes needed for this one — the data already existed, this
+  was purely wiring the existing ViewProfile modal into a page that
+  didn't use it yet.
+
 - **Failed attention checks now actually get recorded** — a real gap,
   good catch. The server-side support for this already existed and
   worked correctly (tested it directly), but the client never once
